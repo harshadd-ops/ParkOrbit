@@ -1,0 +1,36 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Pune Metropolitan Region & Municipal Boundary",
+        "city": "Pune",
+        "state": "Maharashtra",
+        "authority": "PMC / PMRDA",
+        "code": "MH-12"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.7150, 18.5950],
+            [73.7450, 18.6220],
+            [73.7950, 18.6250],
+            [73.8550, 18.6180],
+            [73.9150, 18.5980],
+            [73.9550, 18.5680],
+            [73.9620, 18.5250],
+            [73.9480, 18.4820],
+            [73.9050, 18.4520],
+            [73.8550, 18.4420],
+            [73.7950, 18.4550],
+            [73.7550, 18.4880],
+            [73.7280, 18.5350],
+            [73.7150, 18.5950]
+          ]
+        ]
+      }
+    }
+  ]
+}

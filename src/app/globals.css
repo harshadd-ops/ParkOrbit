@@ -1,0 +1,190 @@
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* DESIGN-mastercard.md Core Surface & Palette Tokens */
+    --canvas-cream: #F3F0EE;
+    --lifted-cream: #FCFBFA;
+    --soft-bone: #F4F4F4;
+    --ink-black: #141413;
+    --charcoal: #262627;
+    --slate-gray: #696969;
+    --granite: #555555;
+    --dust-taupe: #D1CDC7;
+    --ghost-watermark: #E8E2DA;
+    --signal-orange: #CF4500;
+    --light-signal-orange: #F37338;
+    --clay-brown: #9A3A0A;
+    --link-blue: #3860BE;
+    --mc-red: #EB001B;
+    --mc-yellow: #F79E1B;
+
+    /* shadcn/ui Semantic Variable Mapping */
+    --background: #F3F0EE;
+    --foreground: #141413;
+    --card: #FCFBFA;
+    --card-foreground: #141413;
+    --popover: #FFFFFF;
+    --popover-foreground: #141413;
+    --primary: #141413;
+    --primary-foreground: #F3F0EE;
+    --secondary: #FFFFFF;
+    --secondary-foreground: #141413;
+    --muted: #E8E2DA;
+    --muted-foreground: #696969;
+    --accent: #FCFBFA;
+    --accent-foreground: #141413;
+    --destructive: #CF4500;
+    --destructive-foreground: #FFFFFF;
+    --border: rgba(20, 20, 19, 0.14);
+    --input: rgba(20, 20, 19, 0.25);
+    --ring: #141413;
+    --radius: 20px;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    background-color: #F3F0EE;
+    color: #141413;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #F3F0EE;
+    color: #141413;
+    font-family: var(--font-sofia-sans), "MarkForMC", "Sofia Sans", Arial, sans-serif;
+    font-weight: 450;
+    font-size: 16px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, .mc-h1 {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  h2, .mc-h2 {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.22;
+  }
+
+  h3, .mc-h3 {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+}
+
+@layer components {
+  /* Eyebrow label per DESIGN-mastercard.md: 14px, weight 700, +4% tracking, uppercase, paired with accent dot */
+  .mc-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #141413;
+  }
+
+  .mc-eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background-color: #F37338;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  /* Ghost watermark text block per DESIGN-mastercard.md */
+  .mc-watermark {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 0.96;
+    color: #E8E2DA;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  /* Satellite circular micro-CTA docked onto circular portrait bottom-right */
+  .mc-satellite-cta {
+    width: 56px;
+    height: 56px;
+    border-radius: 9999px;
+    background-color: #FFFFFF;
+    color: #141413;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 12px 28px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease;
+  }
+
+  .mc-satellite-cta:hover {
+    transform: scale(1.06) translate(2px, -2px);
+    background-color: #141413;
+    color: #F3F0EE;
+  }
+}
+
+/* ========================================================
+   Leaflet Core Styles & Stacking Fixes for Next.js 15
+   ======================================================== */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  font-family: inherit;
+  background-color: #F3F0EE;
+  isolation: isolate;
+  z-index: 1;
+}
+
+.leaflet-pane {
+  z-index: 10 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 20 !important;
+}
+
+.custom-div-icon,
+.leaflet-div-icon,
+.pko-marker-div-icon,
+.pko-radar-icon,
+.custom-host-pin-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(243, 240, 238, 0.85) !important;
+  backdrop-filter: blur(4px);
+  color: #696969 !important;
+  font-size: 10px !important;
+  border-radius: 8px !important;
+  padding: 2px 6px !important;
+  margin: 6px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #141413 !important;
+  font-weight: 500;
+  text-decoration: none;
+}
+.leaflet-control-attribution a:hover {
+  text-decoration: underline;
+}

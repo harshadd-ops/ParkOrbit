@@ -1,0 +1,187 @@
+--- a/src/components/host/ListingForm.tsx
++++ b/src/components/host/ListingForm.tsx
+@@ -2,6 +2,7 @@
+ "use client";
+ 
+ import React, { useState } from "react";
++import dynamic from "next/dynamic";
+ import { useRouter } from "next/navigation";
+ import {
+   MapPin,
+@@ -30,6 +31,19 @@
+ import { formatInr } from "@/lib/utils";
+ import { toast } from "sonner";
+ 
++// Dynamic import of HostLocationPicker with SSR disabled to guarantee zero SSR 'window is not defined' errors
++const HostLocationPicker = dynamic(
++  () => import("@/components/map/HostLocationPicker").then((mod) => mod.HostLocationPicker),
++  {
++    ssr: false,
++    loading: () => (
++      <div className="w-full h-[360px] rounded-[24px] bg-[#F3F0EE] border border-black/8 flex flex-col items-center justify-center text-[#595550] gap-3">
++        <MapPin className="w-8 h-8 text-[#F37338] animate-bounce" />
++        <p className="text-sm font-medium">Loading interactive Pune map picker...</p>
++      </div>
++    ),
++  }
++);
++
+ const SPACE_TYPE_LABELS_SHORT: Record<SpaceType, string> = {
+   covered: "Covered",
+   uncovered: "Open",
+@@ -69,17 +83,17 @@
+   const [description, setDescription] = useState(
+     initialListing?.description || ""
+   );
+   const [address, setAddress] = useState(initialListing?.address || "");
+   const [locality, setLocality] = useState(
+-    initialListing?.locality || "Indiranagar"
++    initialListing?.locality || "Koregaon Park"
+   );
+-  const [landmark, setLandmark] = useState(initialListing?.landmark || "");
+-  const [city, setCity] = useState(initialListing?.city || "Bengaluru");
+-  const [state, setState] = useState("Karnataka");
+-  const [pincode, setPincode] = useState("560038");
++  const [landmark, setLandmark] = useState(initialListing?.landmark || "North Main Road & Lane 5");
++  const [city, setCity] = useState(initialListing?.city || "Pune");
++  const [state, setState] = useState("Maharashtra");
++  const [pincode, setPincode] = useState("411001");
+   const [latitude, setLatitude] = useState<number>(
+-    initialListing?.latitude ?? 12.9784
++    initialListing?.latitude ?? 18.5362
+   );
+   const [longitude, setLongitude] = useState<number>(
+-    initialListing?.longitude ?? 77.6408
++    initialListing?.longitude ?? 73.8940
+   );
+ 
+@@ -381,28 +395,30 @@
+         {/* Step 2: Location & Coordinates */}
+         <div className="bg-[#FCFBFA] rounded-[28px] p-6 sm:p-8 border border-black/8 space-y-6">
+           <div className="flex flex-wrap items-center justify-between gap-2">
+             <div className="mc-eyebrow">
+               <span className="mc-eyebrow-dot" />
+-              <span>STEP 2 · ADDRESS & EXACT COORDINATES</span>
++              <span>STEP 2 · ADDRESS & INTERACTIVE MAP PIN</span>
+             </div>
+-
+-            <div className="flex flex-wrap items-center gap-1.5">
+-              <span className="text-[11px] text-[#736E68] mr-1">
+-                Quick Preset:
+-              </span>
+-              {URBAN_HUBS.slice(0, 4).map((hub) => (
+-                <button
+-                  key={hub.id}
+-                  type="button"
+-                  onClick={() => handleApplyHubCoordinates(hub.id)}
+-                  className="px-2.5 py-1 rounded-pill bg-[#F3F0EE] hover:bg-[#E8E2DA] text-[11px] font-semibold text-[#141413]"
+-                >
+-                  {hub.name}
+-                </button>
+-              ))}
++            <div className="text-xs text-[#595550] font-medium">
++              Drag pin or select Pune preset to set exact spot coordinates
+             </div>
+           </div>
+ 
++          {/* Interactive Leaflet Map Location Picker */}
++          <HostLocationPicker
++            latitude={latitude}
++            longitude={longitude}
++            locality={locality}
++            city={city}
++            onChange={({ latitude: newLat, longitude: newLng, locality: newLoc, landmark: newLm, city: newCity, pincode: newPin }) => {
++              setLatitude(newLat);
++              setLongitude(newLng);
++              if (newLoc) setLocality(newLoc);
++              if (newLm) setLandmark(newLm);
++              if (newCity) setCity(newCity);
++              if (newPin) setPincode(newPin);
++            }}
++          />
++
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <Field className="sm:col-span-2">
+               <FieldLabel htmlFor="listing-address">Street Address *</FieldLabel>
+               <Input
+                 id="listing-address"
+                 value={address}
+                 onChange={(e) => setAddress(e.target.value)}
+-                placeholder="e.g. 412, 12th Main Road, HAL 2nd Stage"
++                placeholder="e.g. Bungalow 14, Lane 7, Koregaon Park"
+               />
+             </Field>
+ 
+             <Field>
+               <FieldLabel htmlFor="listing-locality">
+                 Locality / Area *
+               </FieldLabel>
+               <Input
+                 id="listing-locality"
+                 value={locality}
+                 onChange={(e) => setLocality(e.target.value)}
+-                placeholder="Indiranagar"
++                placeholder="Koregaon Park"
+               />
+             </Field>
+ 
+             <Field>
+               <FieldLabel htmlFor="listing-landmark">
+                 Nearest Landmark
+               </FieldLabel>
+               <Input
+                 id="listing-landmark"
+                 value={landmark}
+                 onChange={(e) => setLandmark(e.target.value)}
+-                placeholder="150m from Indiranagar Metro Station"
++                placeholder="Near German Bakery / Osho Garden"
+               />
+             </Field>
+ 
+             <Field>
+               <FieldLabel htmlFor="listing-city">City *</FieldLabel>
+               <Input
+                 id="listing-city"
+                 value={city}
+                 onChange={(e) => setCity(e.target.value)}
+-                placeholder="Bengaluru"
++                placeholder="Pune"
+               />
+             </Field>
+ 
+             <Field>
+               <FieldLabel htmlFor="listing-pincode">PIN Code</FieldLabel>
+               <Input
+                 id="listing-pincode"
+                 value={pincode}
+                 onChange={(e) => setPincode(e.target.value)}
+-                placeholder="560038"
++                placeholder="411001"
+               />
+             </Field>
+ 
+             <Field>
+-              <FieldLabel htmlFor="listing-lat">Latitude</FieldLabel>
++              <FieldLabel htmlFor="listing-lat">Latitude (Auto-synced with pin)</FieldLabel>
+               <Input
+                 id="listing-lat"
+                 type="number"
+                 step="0.0001"
+                 value={latitude}
+                 onChange={(e) => setLatitude(Number(e.target.value))}
+               />
+             </Field>
+ 
+             <Field>
+-              <FieldLabel htmlFor="listing-lng">Longitude</FieldLabel>
++              <FieldLabel htmlFor="listing-lng">Longitude (Auto-synced with pin)</FieldLabel>
+               <Input
+                 id="listing-lng"
+                 type="number"
+                 step="0.0001"
+                 value={longitude}
+                 onChange={(e) => setLongitude(Number(e.target.value))}
+               />
+             </Field>
+           </div>
+         </div>

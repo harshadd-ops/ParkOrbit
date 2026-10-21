@@ -1,0 +1,32 @@
+[
+  {
+    "id": "1",
+    "title": "Verify prerequisites, environment setup, and DESIGN-mastercard.md foundation",
+    "passes": true
+  },
+  {
+    "id": "2",
+    "title": "Implement relational data model, realistic seed data, pricing engine, and availability conflict guard",
+    "passes": true
+  },
+  {
+    "id": "3",
+    "title": "Implement backend API routes with ownership RBAC, booking lifecycle, reviews, and moderation",
+    "passes": true
+  },
+  {
+    "id": "4",
+    "title": "Build Mastercard-styled UI components, Floating Nav Pill, Stadium Search Hero, Interactive Map, and Discovery view",
+    "passes": true
+  },
+  {
+    "id": "5",
+    "title": "Build Listing Details, Booking Checkout, Driver Dashboard, Host Guided Builder, Host Studio, and Admin Console",
+    "passes": true
+  },
+  {
+    "id": "6",
+    "title": "Execute Vitest unit/integration suite, TypeScript checks, production build, and Playwright UI verification",
+    "passes": false
+  }
+]
