@@ -15,6 +15,27 @@ import "leaflet/dist/leaflet.css";
 import type { GeoJsonObject } from "geojson";
 import { PUNE_BOUNDARY_GEOJSON } from "@/lib/pune-geojson";
 
+if (
+  typeof window !== "undefined" &&
+  L &&
+  L.Map &&
+  L.Map.prototype &&
+  !(L.Map.prototype as any).__parkorbit_patched
+) {
+  const mapProto = L.Map.prototype as any;
+  const originalInit = mapProto._initContainer;
+  mapProto._initContainer = function (id: any) {
+    const container =
+      typeof id === "string" ? document.getElementById(id) : id;
+    if (container && container._leaflet_id) {
+      delete container._leaflet_id;
+      container.innerHTML = "";
+    }
+    return originalInit.call(this, id);
+  };
+  mapProto.__parkorbit_patched = true;
+}
+
 export interface BasicMapMarker {
   id?: string | number;
   lat: number;

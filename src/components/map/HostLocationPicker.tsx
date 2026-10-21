@@ -168,6 +168,25 @@ export function HostLocationPicker({
         if (!isMounted) return;
         const L = (leafletModule.default ||
           leafletModule) as typeof LeafletTypes;
+        if (
+          L &&
+          L.Map &&
+          L.Map.prototype &&
+          !(L.Map.prototype as any).__parkorbit_patched
+        ) {
+          const mapProto = L.Map.prototype as any;
+          const originalInit = mapProto._initContainer;
+          mapProto._initContainer = function (id: any) {
+            const container =
+              typeof id === "string" ? document.getElementById(id) : id;
+            if (container && container._leaflet_id) {
+              delete container._leaflet_id;
+              container.innerHTML = "";
+            }
+            return originalInit.call(this, id);
+          };
+          mapProto.__parkorbit_patched = true;
+        }
         setMods({ L, RL: rlModule });
       }
     );
