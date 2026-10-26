@@ -974,7 +974,8 @@ export function checkinOrCompleteBooking(
   }
 
   if (action === "checkin") {
-    if (checkinPin && checkinPin.trim() !== booking.checkinPin) {
+    // The PIN is the driver's proof of booking: always required, never optional
+    if (!checkinPin || checkinPin.trim() !== booking.checkinPin) {
       throw new Error("Invalid 4-digit Check-in Verification PIN.");
     }
     booking.status = "checked_in";

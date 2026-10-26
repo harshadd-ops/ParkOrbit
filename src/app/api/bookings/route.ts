@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
 
   const db = readDb();
   const driverBookings = db.bookings.filter((b) => b.driverId === actor.id);
-  const hostBookings = db.bookings.filter((b) => b.hostId === actor.id);
+  // Hosts must ask the driver for the PIN at the gate, so it's never sent to them
+  const hostBookings = db.bookings
+    .filter((b) => b.hostId === actor.id)
+    .map((b) => (b.driverId === actor.id ? b : { ...b, checkinPin: "" }));
   const hostListings = db.listings.filter((l) => l.hostId === actor.id);
   const hostBlocks = db.blockedPeriods.filter((blk) =>
     hostListings.some((l) => l.id === blk.listingId)

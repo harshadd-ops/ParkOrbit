@@ -294,6 +294,35 @@ describe("ParkOrbit Marketplace Engine — Unit & Integration Suite", () => {
       });
       expect(rebooked.booking.status).toBe("confirmed");
     });
+
+    it("requires the driver's PIN for check-in and never sends that PIN to the host", async () => {
+      const { booking } = createBooking("user-driver-1", {
+        listingId: "listing-koregaon-park-1",
+        startTime: "2026-12-05T10:00:00.000Z",
+        endTime: "2026-12-05T12:00:00.000Z",
+        vehicleType: "sedan",
+        vehiclePlate: "MH-12-RN-4821",
+        paymentMethod: "upi_simulated",
+      });
+
+      // Host can't skip the PIN
+      expect(() => checkinOrCompleteBooking("user-host-1", booking.id, "checkin")).toThrow(/Invalid 4-digit/);
+
+      const { NextRequest } = await import("next/server");
+      const { GET } = await import("../src/app/api/bookings/route");
+      const res = await GET(
+        new NextRequest("http://localhost:3000/api/bookings", {
+          headers: { "x-parkorbit-user-id": "user-host-1" },
+        })
+      );
+      const data = await res.json();
+      const seenByHost = data.hostBookings.find((b: { id: string }) => b.id === booking.id);
+      expect(seenByHost.checkinPin).toBe("");
+
+      // With the PIN the driver shows at the gate, the host checks them in
+      const checkedIn = checkinOrCompleteBooking("user-host-1", booking.id, "checkin", booking.checkinPin);
+      expect(checkedIn.status).toBe("checked_in");
+    });
   });
 
   describe("5. Host Listing Management & Draft Support", () => {

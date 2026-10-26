@@ -7,16 +7,16 @@ import { Footer } from "@/components/layout/Footer";
 import { Toaster } from "sonner";
 
 const sofiaSans = Sofia_Sans({
+  // No fixed weights: loads the variable font so the design system's 450 body weight renders
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-sofia-sans",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "ParkOrbit — Peer-to-Peer Parking Rental Marketplace",
+  title: "ParkOrbit — Park in someone's empty spot",
   description:
-    "Discover verified private driveways, covered apartment bays, and commercial parking slots near your destination — or rent out your unused parking space to earn extra income.",
+    "ParkOrbit turns idle driveways and society parking bays in Pune into bookable parking, by the hour, with a PIN at the gate.",
 };
 
 export default function RootLayout({

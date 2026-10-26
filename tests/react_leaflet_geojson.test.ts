@@ -98,21 +98,33 @@ describe("React-Leaflet v4 + OpenStreetMap + GeoJSON Boundary Verification", () 
       path.resolve(process.cwd(), "src/components/map/DriverDiscoveryMap.tsx"),
       "utf-8"
     );
-    expect(driverMapSrc).toContain("GeoJSON");
+    // Discovery map fits to the listings but deliberately draws no boundary outline
+    expect(driverMapSrc).not.toContain("RL.GeoJSON");
     expect(driverMapSrc).toContain("map.fitBounds(bounds");
   });
 
-  it("4. Markers / Pins: verifies clickable <CircleMarker> and <Marker> with <Tooltip> and <Popup>", () => {
-    for (const relPath of [
-      "src/components/map/BasicMap.tsx",
-      "src/components/map/DriverDiscoveryMap.tsx",
-      "src/components/map/HostLocationPicker.tsx",
-    ]) {
-      const src = fs.readFileSync(path.resolve(process.cwd(), relPath), "utf-8");
-      expect(src).toContain("CircleMarker");
-      expect(src).toContain("Popup");
-      expect(src).toContain("Tooltip");
-    }
+  it("4. Markers / Pins: verifies clickable markers on every map", () => {
+    const basicSrc = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/map/BasicMap.tsx"),
+      "utf-8"
+    );
+    expect(basicSrc).toContain("CircleMarker");
+    expect(basicSrc).toContain("Popup");
+    expect(basicSrc).toContain("Tooltip");
+
+    // Discovery + picker use a single clean Marker per spot (no duplicate dots or popups)
+    const driverSrc = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/map/DriverDiscoveryMap.tsx"),
+      "utf-8"
+    );
+    expect(driverSrc).toContain("RL.Marker");
+    expect(driverSrc).toContain("click: () => onSelect(listing.id)");
+    const pickerSrc = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/map/HostLocationPicker.tsx"),
+      "utf-8"
+    );
+    expect(pickerSrc).toContain("RL.Marker");
+    expect(pickerSrc).toContain("dragend");
   });
 
   it("5. Invalidate Size: verifies map.invalidateSize() helper on mount and window resize", () => {

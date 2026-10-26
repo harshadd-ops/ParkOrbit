@@ -2,33 +2,22 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import { ListingForm } from "@/components/host/ListingForm";
 
 export default function NewHostListingPage() {
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 space-y-8">
-      <div className="space-y-3">
+    <div className="mx-auto max-w-[1100px] px-5 md:px-8 pt-10 md:pt-14">
+      <div className="max-w-[760px] mx-auto flex items-center justify-between mb-12">
+        <h1 className="text-[18px] font-medium text-slate">List your space</h1>
         <Link
           href="/dashboard/host"
-          className="inline-flex items-center gap-2 text-sm font-medium text-[#595550] hover:text-[#141413] transition-colors"
+          aria-label="Close and return to dashboard"
+          className="inline-flex size-11 items-center justify-center rounded-full hover:bg-lifted transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Host Studio
+          <X className="size-5" />
         </Link>
-        <div className="mc-eyebrow">
-          <span className="mc-eyebrow-dot" />
-          <span>HOST ONBOARDING WIZARD</span>
-        </div>
-        <h1 className="text-3xl sm:text-5xl font-medium tracking-[-0.02em] text-[#141413]">
-          List your parking space on ParkOrbit
-        </h1>
-        <p className="text-base text-[#595550] max-w-2xl">
-          Turn your unused driveway, apartment bay, or commercial parking spot
-          into dependable income. Publish immediately or save as a draft.
-        </p>
       </div>
-
       <ListingForm mode="create" />
     </div>
   );

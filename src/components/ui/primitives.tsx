@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import * as SeparatorPrimitive from "@radix-ui/react-separator";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import * as SwitchPrimitive from "@radix-ui/react-switch";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -285,7 +286,26 @@ function Skeleton({
   );
 }
 
+/* Switch */
+const Switch = React.forwardRef<
+  React.ElementRef<typeof SwitchPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <SwitchPrimitive.Root
+    ref={ref}
+    className={cn(
+      "peer inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-ink data-[state=unchecked]:bg-taupe",
+      className
+    )}
+    {...props}
+  >
+    <SwitchPrimitive.Thumb className="pointer-events-none block size-6 rounded-full bg-white shadow-sm transition-transform duration-200 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0" />
+  </SwitchPrimitive.Root>
+));
+Switch.displayName = "Switch";
+
 export {
+  Switch,
   Dialog,
   DialogPortal,
   DialogOverlay,

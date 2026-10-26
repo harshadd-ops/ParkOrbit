@@ -480,38 +480,30 @@ describe("Empirical Challenger M2: Role-Specific Views & 1-Click Persona Switche
    * SUITE 5: DRIVER DISCOVERY VIEW DE-CLUTTERING & PUNE GEOLOCATION
    * ------------------------------------------------------------------------ */
   describe("Suite 5: Driver Discovery Cleanliness & Pune Geolocation", () => {
-    it("empirically verifies all PUNE_LOCALITIES in page.tsx fall within authentic Pune coordinates", () => {
+    it("empirically verifies all locality chips in find/page.tsx fall within authentic Pune coordinates", () => {
       const pageFile = fs.readFileSync(
-        path.join(process.cwd(), "src", "app", "page.tsx"),
+        path.join(process.cwd(), "src", "app", "find", "page.tsx"),
         "utf-8"
       );
 
-      // Extract PUNE_LOCALITIES block
       const localityMatch = pageFile.match(
-        /const PUNE_LOCALITIES: Record<string, \{ lat: number; lng: number; label: string \}> = (\{[\s\S]*?\n\};)/
+        /const LOCALITIES: Array<\{ name: string; lat: number; lng: number \}> = (\[[\s\S]*?\n\];)/
       );
-      expect(localityMatch).toBeDefined();
       expect(localityMatch?.[1]).toBeDefined();
 
-      if (localityMatch?.[1]) {
-        // Parse localities using regex
-        const entryRegex = /"([^"]+)":\s*\{\s*lat:\s*([0-9.]+),\s*lng:\s*([0-9.]+),\s*label:\s*"([^"]+)"\s*\}/g;
-        let match;
-        let count = 0;
-        while ((match = entryRegex.exec(localityMatch[1])) !== null) {
-          const [, name, latStr, lngStr, label] = match;
-          const lat = parseFloat(latStr);
-          const lng = parseFloat(lngStr);
-          count++;
-
-          expect(lat).toBeGreaterThanOrEqual(PUNE_BOUNDS.MIN_LAT);
-          expect(lat).toBeLessThanOrEqual(PUNE_BOUNDS.MAX_LAT);
-          expect(lng).toBeGreaterThanOrEqual(PUNE_BOUNDS.MIN_LNG);
-          expect(lng).toBeLessThanOrEqual(PUNE_BOUNDS.MAX_LNG);
-          expect(label.toLowerCase()).toContain("pune");
-        }
-        expect(count).toBeGreaterThanOrEqual(8);
+      const entryRegex = /\{\s*name:\s*"([^"]+)",\s*lat:\s*([0-9.]+),\s*lng:\s*([0-9.]+)\s*\}/g;
+      let match;
+      let count = 0;
+      while ((match = entryRegex.exec(localityMatch![1])) !== null) {
+        const lat = parseFloat(match[2]);
+        const lng = parseFloat(match[3]);
+        count++;
+        expect(lat).toBeGreaterThanOrEqual(PUNE_BOUNDS.MIN_LAT);
+        expect(lat).toBeLessThanOrEqual(PUNE_BOUNDS.MAX_LAT);
+        expect(lng).toBeGreaterThanOrEqual(PUNE_BOUNDS.MIN_LNG);
+        expect(lng).toBeLessThanOrEqual(PUNE_BOUNDS.MAX_LNG);
       }
+      expect(count).toBeGreaterThanOrEqual(8);
     });
 
     it("empirically verifies absence of marketing walls, stat strips, and host banners in page.tsx", () => {

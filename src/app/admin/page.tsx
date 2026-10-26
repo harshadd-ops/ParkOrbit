@@ -8,7 +8,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/field";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateTime } from "@/lib/utils";
@@ -123,72 +122,113 @@ export default function AdminModerationPage() {
     }
   };
 
-  return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 space-y-10">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="mc-eyebrow mb-2">
-            <span className="mc-eyebrow-dot" />
-            <span>TRUST, SAFETY & MARKETPLACE GOVERNANCE</span>
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-medium tracking-[-0.02em] text-[#141413]">
-            Admin Moderation & Commission Console
-          </h1>
-          <p className="text-base text-[#595550] mt-1">
-            Review community trust reports, suspend non-compliant listings, and
-            configure platform take-rates.
-          </p>
-        </div>
+  const openReports = reports.filter((r) => r.status === "open");
+  const closedReports = reports.filter((r) => r.status !== "open");
 
-        {user?.role !== "admin" && (
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-pill bg-black/5 border border-black/10 text-xs text-[#595550] font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#CF4500]" />
-            <span>Viewing as {user?.name || "Demo User"}. Use navbar switcher to activate Admin persona.</span>
-          </div>
-        )}
+  if (user && user.role !== "admin") {
+    return (
+      <div className="mx-auto max-w-[720px] px-5 py-32 text-center">
+        <h1 className="text-[36px]">Trust & safety console</h1>
+        <p className="mt-3 text-slate">
+          Switch to the Admin demo account (Nandini Sharma) in the dock below to see it.
+        </p>
       </div>
+    );
+  }
 
-      {/* Grid: Left 4 Cols Commission Config, Right 8 Cols Moderation Queue */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Configurable Marketplace Commission Card */}
+  return (
+    <div className="mx-auto max-w-[1100px] px-5 md:px-8 pt-12 md:pt-16">
+      <p className="text-[16px] text-slate">Trust & safety</p>
+      <h1 className="mt-1 text-[40px] md:text-[56px] leading-[1] tracking-[-0.03em]">
+        Reports
+      </h1>
+
+      <div className="mt-14 grid lg:grid-cols-12 gap-10 items-start">
+        <section className="lg:col-span-8">
+          <h2 className="text-[22px]">
+            Needs review <span className="text-slate">({openReports.length})</span>
+          </h2>
+
+          {loading ? (
+            <div className="mt-6 h-40 rounded-stadium bg-lifted animate-pulse" />
+          ) : openReports.length === 0 ? (
+            <div className="mt-6 rounded-stadium bg-lifted p-10 text-center text-slate">
+              <ShieldCheck className="size-6 mx-auto mb-3 text-ink" />
+              All clear. No open reports.
+            </div>
+          ) : (
+            <ul className="mt-6 space-y-4">
+              {openReports.map((rep) => (
+                <li key={rep.id} className="rounded-stadium bg-white p-6 md:p-7 shadow-nav">
+                  <div className="text-[13px] text-slate">
+                    {rep.reasonCategory.replace(/_/g, " ")} · {rep.reporterName} ·{" "}
+                    {formatDateTime(rep.createdAt)}
+                  </div>
+                  <h3 className="mt-2 text-[18px] font-medium">{rep.targetTitle}</h3>
+                  <p className="mt-2 text-[15px] text-granite leading-[1.5]">{rep.description}</p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {rep.targetType === "listing" && (
+                      <Button size="sm" onClick={() => handleModerateReport(rep.id, "resolved", true)}>
+                        <ShieldAlert />
+                        Suspend listing
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleModerateReport(rep.id, "resolved", false)}
+                    >
+                      <CheckCircle2 />
+                      Resolve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleModerateReport(rep.id, "dismissed", false)}
+                    >
+                      <XCircle />
+                      Dismiss
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {closedReports.length > 0 && (
+            <>
+              <h2 className="mt-16 text-[22px]">Closed</h2>
+              <ul className="mt-4 divide-y divide-ink/10">
+                {closedReports.map((rep) => (
+                  <li key={rep.id} className="py-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-[15px] font-medium truncate">{rep.targetTitle}</div>
+                      <div className="text-[13px] text-slate truncate">{rep.adminNotes}</div>
+                    </div>
+                    <span className="text-[13px] text-slate capitalize shrink-0">{rep.status}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+
         <form
           onSubmit={handleSaveCommission}
-          className="lg:col-span-4 bg-[#141413] text-[#F3F0EE] rounded-[28px] p-7 space-y-6 shadow-mc-floating"
+          className="lg:col-span-4 lg:sticky lg:top-28 rounded-stadium bg-ink text-canvas p-7 md:p-8 space-y-6"
         >
-          <div className="mc-eyebrow text-[#F37338]">
-            <span className="mc-eyebrow-dot" />
-            <span>BUSINESS MODEL CONFIGURATION</span>
-          </div>
-
           <div>
-            <h2 className="text-2xl font-medium text-white">
-              Marketplace Commission Rate
-            </h2>
-            <p className="text-xs text-[#A39E98] mt-1">
-              Dynamically adjusts the platform service fee and net host payout
-              across all new reservations.
+            <div className="text-[14px] text-canvas/60">Platform fee</div>
+            <div data-testid="live-commission-rate" className="mt-2 text-[56px] font-medium leading-none tracking-[-0.03em]">
+              {config.commissionRatePercent}%
+            </div>
+            <p className="mt-3 text-[14px] text-canvas/60">
+              Taken from host earnings on every new booking.
             </p>
           </div>
-
-          <div className="bg-white/10 p-4 rounded-2xl border border-white/15 flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-[#D0CBC5]">
-              Current Live Take-Rate
-            </span>
-            <span
-              data-testid="live-commission-rate"
-              className="text-3xl font-bold text-[#F37338]"
-            >
-              {config.commissionRatePercent}%
-            </span>
-          </div>
-
           <div>
-            <label
-              htmlFor="commission-rate-input"
-              className="block text-xs font-bold uppercase tracking-wider text-[#D0CBC5] mb-1.5"
-            >
-              Set New Commission % (0% – 35%)
+            <label htmlFor="commission-rate-input" className="block text-[13px] text-canvas/60 mb-2 pl-1">
+              New rate (0–35%)
             </label>
             <Input
               id="commission-rate-input"
@@ -198,132 +238,18 @@ export default function AdminModerationPage() {
               step="1"
               value={commissionInput}
               onChange={(e) => setCommissionInput(Number(e.target.value))}
-              className="bg-white text-[#141413]"
+              className="border-transparent"
             />
           </div>
-
           <Button
             type="submit"
-            variant="consent"
-            className="w-full"
+            variant="secondary"
+            className="w-full bg-canvas border-canvas"
             disabled={savingConfig}
           >
-            {savingConfig
-              ? "Updating Take-Rate..."
-              : "Save Platform Commission"}
+            {savingConfig ? "Saving…" : "Update fee"}
           </Button>
         </form>
-
-        {/* Moderation Reports Queue */}
-        <div className="lg:col-span-8 bg-[#FCFBFA] rounded-[28px] p-6 sm:p-8 border border-black/10 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-medium text-[#141413]">
-                Trust & Safety Reports Queue ({reports.length})
-              </h2>
-              <p className="text-xs text-[#595550] mt-0.5">
-                Investigate driver and host reports regarding listing accuracy
-                or access issues.
-              </p>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="h-40 rounded-2xl bg-[#F3F0EE] animate-pulse" />
-          ) : reports.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-[#F3F0EE]">
-              <p className="text-sm text-[#595550]">
-                No moderation reports in the queue.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {reports.map((rep) => (
-                <div
-                  key={rep.id}
-                  className="p-5 rounded-2xl bg-[#F3F0EE] border border-black/8 space-y-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          rep.status === "open"
-                            ? "signal"
-                            : rep.status === "resolved"
-                              ? "default"
-                              : "outline"
-                        }
-                      >
-                        {rep.status.toUpperCase()}
-                      </Badge>
-                      <span className="text-xs font-bold text-[#141413]">
-                        Target: {rep.targetTitle}
-                      </span>
-                    </div>
-                    <span className="text-xs text-[#736E68]">
-                      Reported by {rep.reporterName} ·{" "}
-                      {formatDateTime(rep.createdAt)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-bold text-[#CF4500]">
-                      Reason: {rep.reasonCategory.replace("_", " ")}
-                    </div>
-                    <p className="text-xs text-[#595550] mt-1">
-                      {rep.description}
-                    </p>
-                  </div>
-
-                  {rep.adminNotes && (
-                    <div className="text-xs text-[#1E7E48] font-medium bg-white p-2.5 rounded-xl">
-                      Resolution: {rep.adminNotes}
-                    </div>
-                  )}
-
-                  {rep.status === "open" && (
-                    <div className="flex flex-wrap items-center gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() =>
-                          handleModerateReport(rep.id, "resolved", false)
-                        }
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Resolve Report
-                      </Button>
-
-                      {rep.targetType === "listing" && (
-                        <Button
-                          size="sm"
-                          variant="consent"
-                          onClick={() =>
-                            handleModerateReport(rep.id, "resolved", true)
-                          }
-                        >
-                          <ShieldAlert className="w-3.5 h-3.5" />
-                          Flag & Suspend Listing
-                        </Button>
-                      )}
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          handleModerateReport(rep.id, "dismissed", false)
-                        }
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        Dismiss
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

@@ -1,846 +1,568 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  MapPin,
-  Calendar,
-  Clock,
-  Car,
-  Star,
   ArrowRight,
-  SlidersHorizontal,
-  Zap,
-  Compass,
-  Ruler,
+  ArrowUpRight,
+  BadgeCheck,
+  KeyRound,
+  LockKeyhole,
+  Search,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatInr } from "@/lib/utils";
+import { Reveal, CountUp, useScrollProgress } from "@/components/motion/Reveal";
+import { useAuth, DEMO_PERSONAS } from "@/context/AuthContext";
+import { CURATED_PARKING_PHOTOS } from "@/lib/seed";
+import { cn, formatInr } from "@/lib/utils";
+import type { EnrichedListing } from "@/lib/db";
 
 const DriverDiscoveryMap = dynamic(
-  () =>
-    import("@/components/map/DriverDiscoveryMap").then(
-      (mod) => mod.DriverDiscoveryMap
-    ),
+  () => import("@/components/map/DriverDiscoveryMap").then((m) => m.DriverDiscoveryMap),
   {
     ssr: false,
-    loading: () => (
-      <div className="relative w-full h-[460px] lg:h-[620px] rounded-stadium bg-[#191918] flex flex-col items-center justify-center text-white border border-ink/15 animate-pulse">
-        <div className="w-10 h-10 rounded-full border-2 border-[#F37338] border-t-transparent animate-spin mb-3" />
-        <p className="text-sm text-[#D0CBC5] font-medium">
-          Loading Pune Discovery Map...
-        </p>
-      </div>
-    ),
+    loading: () => <div className="w-full h-full rounded-stadium bg-[#E8E2DA] animate-pulse" />,
   }
 );
-import { URBAN_HUBS } from "@/lib/seed";
-import { useAuth } from "@/context/AuthContext";
-import type { SpaceType, VehicleType } from "@/lib/types";
-import type { EnrichedListing } from "@/lib/db";
-import { toast } from "sonner";
 
-const SPACE_TYPE_LABELS: Record<SpaceType, string> = {
-  covered: "Covered Bay",
-  uncovered: "Open Spot",
-  driveway: "Private Driveway",
-  dedicated_private: "Dedicated Private Slot",
-  commercial_lot: "Commercial Deck",
+const STEPS = {
+  driver: [
+    {
+      title: "Search where you're going",
+      body: "Real spaces with real prices, on a live map of Pune.",
+    },
+    {
+      title: "Book in seconds",
+      body: "Pick a time and pay by UPI. Gate instructions unlock instantly.",
+    },
+    {
+      title: "Show your PIN",
+      body: "A one-time 4-digit code checks you in. No cash, no haggling.",
+    },
+  ],
+  host: [
+    {
+      title: "List in three minutes",
+      body: "Drop a pin, add a photo, set your hourly price.",
+    },
+    {
+      title: "Stay in control",
+      body: "Pause anytime, or block the hours you need your spot back.",
+    },
+    {
+      title: "Get paid",
+      body: "Verify the driver's PIN on arrival. Earnings show up in your dashboard.",
+    },
+  ],
 };
 
-const VEHICLE_LABELS: Record<VehicleType, string> = {
-  two_wheeler: "Two-Wheeler",
-  hatchback: "Hatchback",
-  sedan: "Sedan",
-  suv: "SUV / MPV",
-  ev: "EV Ready",
-};
-
-const PUNE_LOCALITIES: Record<string, { lat: number; lng: number; label: string }> = {
-  "Koregaon Park": { lat: 18.5362, lng: 73.8940, label: "Koregaon Park, Pune" },
-  "Baner": { lat: 18.5590, lng: 73.7868, label: "Baner, Pune" },
-  "Hinjewadi": { lat: 18.5913, lng: 73.7389, label: "Hinjewadi, Pune" },
-  "Kothrud": { lat: 18.5074, lng: 73.8077, label: "Kothrud, Pune" },
-  "Viman Nagar": { lat: 18.5679, lng: 73.9143, label: "Viman Nagar, Pune" },
-  "FC Road": { lat: 18.5222, lng: 73.8416, label: "FC Road, Pune" },
-  "Wakad": { lat: 18.5987, lng: 73.7686, label: "Wakad, Pune" },
-  "Magarpatta": { lat: 18.5158, lng: 73.9272, label: "Magarpatta, Pune" },
-};
+const TRUST = [
+  {
+    icon: LockKeyhole,
+    title: "Gate codes stay private",
+    body: "Bay numbers and access codes only unlock after a confirmed booking.",
+  },
+  {
+    icon: KeyRound,
+    title: "PIN check-in",
+    body: "Every booking gets a one-time PIN that the host verifies at the gate.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Reviewed by people",
+    body: "Any listing can be reported. Our trust team can pull it from search in one click.",
+  },
+];
 
 export default function HomePage() {
   const router = useRouter();
-  const { currentUser } = useAuth();
+  const { currentUser, switchUser, config } = useAuth();
+  const [listings, setListings] = useState<EnrichedListing[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [audience, setAudience] = useState<"driver" | "host">("driver");
+  const [rate, setRate] = useState(60);
+  const [hoursPerDay, setHoursPerDay] = useState(8);
+  const hero = useScrollProgress<HTMLDivElement>();
 
-  // Role Gate: Redirect Host to Host Studio & Admin to Admin Console
   useEffect(() => {
-    if (currentUser?.role === "host") {
-      router.replace("/dashboard/host");
-    } else if (currentUser?.role === "admin") {
-      router.replace("/admin");
-    }
-  }, [currentUser?.role, router]);
-
-  // Default search window: tomorrow 10:00 AM for 3 hours
-  const defaultWindow = useMemo(() => {
-    const start = new Date(Date.now() + 24 * 3600 * 1000);
-    start.setMinutes(0, 0, 0);
-    start.setHours(10);
-    const dateStr = start.toISOString().slice(0, 10);
-    return {
-      date: dateStr,
-      arrivalTime: "10:00",
-      durationHours: 3,
-    };
+    fetch("/api/listings")
+      .then((res) => res.json())
+      .then((data) => setListings(data.listings || []))
+      .catch(() => setListings([]));
   }, []);
 
-  const [query, setQuery] = useState("");
-  const [selectedLocality, setSelectedLocality] = useState<string>("all");
-  const [date, setDate] = useState(defaultWindow.date);
-  const [arrivalTime, setArrivalTime] = useState(defaultWindow.arrivalTime);
-  const [durationHours, setDurationHours] = useState<number>(
-    defaultWindow.durationHours
-  );
-  const [vehicleType, setVehicleType] = useState<string>("all");
-  const [spaceType, setSpaceType] = useState<string>("all");
-  const [maxPrice, setMaxPrice] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("featured");
-  const [onlyAvailable, setOnlyAvailable] = useState<boolean>(true);
+  const stats = useMemo(() => {
+    const localities = new Set(listings.map((l) => l.locality.split(" ")[0]));
+    const minRate = listings.length ? Math.min(...listings.map((l) => l.hourlyRateInr)) : 0;
+    return { spaces: listings.length, localities: localities.size, minRate };
+  }, [listings]);
 
-  const [searchCenter, setSearchCenter] = useState<{
-    lat: number;
-    lng: number;
-    label: string;
-  } | null>({
-    lat: 18.5204,
-    lng: 73.8567,
-    label: "Pune City Center",
-  });
+  const commission = config?.commissionRatePercent ?? 12;
+  const monthlyEarnings = Math.round(rate * hoursPerDay * 22 * (1 - commission / 100));
 
-  const [listings, setListings] = useState<EnrichedListing[]>([]);
-  const [selectedListingId, setSelectedListingId] = useState<string | null>(
-    null
-  );
-  const [loading, setLoading] = useState<boolean>(true);
-  const [locating, setLocating] = useState<boolean>(false);
-
-  // Compute ISO startTime and endTime from date + arrivalTime + durationHours
-  const { startTimeIso, endTimeIso } = useMemo(() => {
-    try {
-      const start = new Date(`${date}T${arrivalTime}:00`);
-      if (isNaN(start.getTime())) {
-        const fallback = new Date(Date.now() + 12 * 3600 * 1000);
-        const fallbackEnd = new Date(
-          fallback.getTime() + durationHours * 3600 * 1000
-        );
-        return {
-          startTimeIso: fallback.toISOString(),
-          endTimeIso: fallbackEnd.toISOString(),
-        };
-      }
-      const end = new Date(start.getTime() + durationHours * 3600 * 1000);
-      return {
-        startTimeIso: start.toISOString(),
-        endTimeIso: end.toISOString(),
-      };
-    } catch {
-      const fallback = new Date(Date.now() + 12 * 3600 * 1000);
-      const fallbackEnd = new Date(
-        fallback.getTime() + durationHours * 3600 * 1000
-      );
-      return {
-        startTimeIso: fallback.toISOString(),
-        endTimeIso: fallbackEnd.toISOString(),
-      };
+  // Demo shortcut: become the right persona, then open that role's home
+  const goAs = async (role: "driver" | "host", path: string) => {
+    const persona = DEMO_PERSONAS.find((p) => p.role === role);
+    if (persona && currentUser?.id !== persona.id) {
+      const switched = await switchUser(persona.id);
+      if (!switched) return;
     }
-  }, [date, arrivalTime, durationHours]);
-
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (query.trim()) params.set("query", query.trim());
-      if (spaceType !== "all") params.set("spaceType", spaceType);
-      if (vehicleType !== "all") params.set("vehicleType", vehicleType);
-      if (maxPrice !== "all") params.set("maxHourlyPrice", maxPrice);
-      if (sortBy !== "featured") params.set("sortBy", sortBy);
-      if (searchCenter) {
-        params.set("lat", String(searchCenter.lat));
-        params.set("lng", String(searchCenter.lng));
-      }
-      params.set("startTime", startTimeIso);
-      params.set("endTime", endTimeIso);
-      if (onlyAvailable) {
-        params.set("onlyAvailable", "true");
-      }
-
-      const res = await fetch(`/api/listings?${params.toString()}`);
-      const data = await res.json();
-      setListings(data.listings || []);
-      if (data.listings?.length > 0 && !selectedListingId) {
-        setSelectedListingId(data.listings[0].id);
-      }
-    } catch {
-      toast.error("Could not load parking spaces. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    query,
-    spaceType,
-    vehicleType,
-    maxPrice,
-    sortBy,
-    searchCenter,
-    onlyAvailable,
-    startTimeIso,
-    endTimeIso,
-    selectedListingId,
-  ]);
-
-  useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
-
-  const handleLocalityChange = (loc: string) => {
-    setSelectedLocality(loc);
-    if (loc === "all") {
-      setQuery("");
-      setSearchCenter({ lat: 18.5204, lng: 73.8567, label: "Pune City Center" });
-    } else {
-      setQuery(loc);
-      const target = PUNE_LOCALITIES[loc];
-      if (target) {
-        setSearchCenter(target);
-        setSortBy("distance");
-      }
-    }
+    router.push(path);
+    router.refresh();
   };
 
-  const handleSelectHub = (hub: (typeof URBAN_HUBS)[number]) => {
-    setQuery(hub.name);
-    setSelectedLocality(hub.name in PUNE_LOCALITIES ? hub.name : "all");
-    setSearchCenter({
-      lat: hub.latitude,
-      lng: hub.longitude,
-      label: `${hub.name}, ${hub.city}`,
-    });
-    setSortBy("distance");
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    router.push(q ? `/find?q=${encodeURIComponent(q)}` : "/find");
   };
 
-  const handleLocateMe = () => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      toast.error("Browser geolocation is not supported on this device.");
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        setQuery("");
-        setSelectedLocality("all");
-        setSearchCenter({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          label: `Your GPS Location (${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)})`,
-        });
-        setSortBy("distance");
-        toast.success("Showing parking spaces sorted by distance from you.");
-      },
-      () => {
-        setLocating(false);
-        toast.info(
-          "Location permission not granted — defaulting to Pune City Center."
-        );
-        setSearchCenter({
-          lat: 18.5204,
-          lng: 73.8567,
-          label: "Pune City Center (Fallback)",
-        });
-      },
-      { timeout: 6000 }
-    );
-  };
-
-  const handleResetFilters = () => {
-    setQuery("");
-    setSelectedLocality("all");
-    setVehicleType("all");
-    setSpaceType("all");
-    setMaxPrice("all");
-    setSortBy("featured");
-    setOnlyAvailable(false);
-    setSearchCenter({
-      lat: 18.5204,
-      lng: 73.8567,
-      label: "Pune City Center",
-    });
-  };
-
-  // Transitional state for Host or Admin to prevent Driver UI flash
-  if (currentUser?.role === "host") {
-    return (
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-24 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <div className="w-12 h-12 rounded-full border-2 border-[#CF4500] border-t-transparent animate-spin" />
-        <h2 className="text-2xl font-medium text-[#141413]">Opening Host Studio...</h2>
-        <p className="text-sm text-[#595550] max-w-md">
-          Welcome back{currentUser?.name ? `, ${currentUser.name}` : ""}. Loading your spaces, reservations queue, and earnings studio.
-        </p>
-        <Link href="/dashboard/host">
-          <Button variant="default" size="sm">Go to Host Studio</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  if (currentUser?.role === "admin") {
-    return (
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-24 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <div className="w-12 h-12 rounded-full border-2 border-[#141413] border-t-transparent animate-spin" />
-        <h2 className="text-2xl font-medium text-[#141413]">Opening Admin Console...</h2>
-        <p className="text-sm text-[#595550] max-w-md">
-          Loading Trust & Safety moderation queue.
-        </p>
-        <Link href="/admin">
-          <Button variant="default" size="sm">Go to Admin Console</Button>
-        </Link>
-      </div>
-    );
-  }
+  const parallax = hero.progress * 80;
 
   return (
-    <div className="w-full overflow-x-hidden">
-      {/* 1. CLEAN DRIVER DISCOVERY HERO */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 pt-6 pb-10">
-        <div className="relative rounded-[32px] bg-[#141413] text-[#F3F0EE] overflow-hidden shadow-mc-floating border border-black/10">
-          {/* Subtle gradient texture */}
-          <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#F37338_1px,transparent_1px)] [background-size:24px_24px]" />
+    <div className="overflow-x-hidden">
+      {/* ── 1. Hero ─────────────────────────────────────────── */}
+      <section
+        ref={hero.ref}
+        className="relative mx-auto max-w-[1200px] px-5 md:px-8 pt-16 md:pt-24 pb-24 md:pb-32 grid lg:grid-cols-[1.05fr_1fr] gap-16 items-center"
+      >
+        <div>
+          <Reveal>
+            <div className="mc-eyebrow">
+              <span className="mc-eyebrow-dot" />
+              <span>Peer-to-peer parking · Pune</span>
+            </div>
+          </Reveal>
+          <Reveal delay={80}>
+            <h1 className="mt-6 text-[46px] md:text-[64px] lg:text-[72px] leading-[0.98] tracking-[-0.03em]">
+              Park in someone&apos;s empty spot.
+            </h1>
+          </Reveal>
+          <Reveal delay={160}>
+            <p className="mt-6 text-[18px] md:text-[20px] leading-[1.45] text-granite max-w-[30rem]">
+              ParkOrbit turns idle driveways and society parking bays into
+              spots you can book by the hour, with a PIN at the gate.
+            </p>
+          </Reveal>
+          <Reveal delay={240}>
+            <form
+              onSubmit={submitSearch}
+              className="mt-10 flex items-center gap-2 rounded-pill bg-white p-2 pl-6 shadow-halo max-w-[30rem]"
+            >
+              <Search className="size-5 text-slate shrink-0" />
+              <label htmlFor="hero-search" className="sr-only">Where are you going?</label>
+              <input
+                id="hero-search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Where are you going?"
+                className="flex-1 min-w-0 bg-transparent text-[16px] placeholder:text-slate focus:outline-none"
+              />
+              <Button type="submit" className="rounded-pill">
+                Find parking
+              </Button>
+            </form>
+          </Reveal>
+          <Reveal delay={320}>
+            <button
+              type="button"
+              onClick={() => goAs("host", "/host/new")}
+              className="mt-6 inline-flex items-center gap-1.5 text-[16px] font-medium text-ink border-b border-ink/30 hover:border-ink pb-0.5 transition-colors"
+            >
+              Have an empty spot? List it
+              <ArrowRight className="size-4" />
+            </button>
+          </Reveal>
+        </div>
 
-          <div className="relative z-10 px-6 sm:px-10 py-10">
-            {/* Header: Concise Pune Eyebrow & Title */}
-            <div className="max-w-2xl mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-white/10 backdrop-blur-sm border border-white/15 mb-3">
-                <span className="w-2 h-2 rounded-full bg-[#F37338]" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#F3F0EE]">
-                  PUNE PARKING DISCOVERY
+        {/* Orbit composition */}
+        <div className="relative h-[420px] md:h-[520px]" aria-hidden="true">
+          <svg
+            viewBox="0 0 520 520"
+            className="absolute inset-0 w-full h-full overflow-visible"
+            fill="none"
+          >
+            <path
+              id="hero-orbit"
+              d="M 40 300 C 40 120, 480 60, 490 240 C 500 420, 120 500, 40 300 Z"
+              stroke="#F37338"
+              strokeWidth="1.25"
+              pathLength={1}
+              className="orbit-draw"
+            />
+            <circle r="5" fill="#F37338">
+              <animateMotion dur="14s" repeatCount="indefinite" rotate="auto">
+                <mpath href="#hero-orbit" />
+              </animateMotion>
+            </circle>
+          </svg>
+
+          <div
+            className="absolute left-1/2 top-1/2 size-[280px] md:size-[340px] -translate-x-1/2 -translate-y-1/2"
+            style={{ transform: `translate(-50%, calc(-50% + ${parallax * 0.4}px))` }}
+          >
+            <Reveal variant="scale" className="size-full">
+              <div className="relative size-full">
+                <img
+                  src={CURATED_PARKING_PHOTOS[2].url}
+                  alt=""
+                  className="size-full rounded-full object-cover shadow-halo"
+                />
+                <span className="mc-satellite-cta absolute bottom-3 right-3">
+                  <ArrowUpRight className="size-5" />
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-[-0.02em] text-[#F3F0EE]">
-                Find & reserve verified parking in Pune.
-              </h1>
-              <p className="text-sm sm:text-base text-[#D0CBC5] mt-2 max-w-xl">
-                Instant access to private driveways, EV bays, and dedicated slots across Koregaon Park, Baner, Hinjewadi, and top Pune localities.
-              </p>
+            </Reveal>
+          </div>
+
+          <div
+            className="absolute left-0 md:left-2 top-6 md:top-10"
+            style={{ transform: `translateY(${-parallax * 0.6}px)` }}
+          >
+            <div className="float-slow">
+              <Reveal delay={500}>
+                <div className="rounded-pill bg-white px-5 py-3 shadow-halo">
+                  <div className="text-[12px] text-slate">Koregaon Park</div>
+                  <div className="text-[16px] font-medium">₹75/hr · covered</div>
+                </div>
+              </Reveal>
             </div>
+          </div>
 
-            {/* PROMINENT SEARCH CONSOLE */}
-            <div className="bg-[#FCFBFA] text-[#141413] rounded-[24px] p-5 sm:p-6 shadow-2xl border border-black/10">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                {/* Destination Input */}
-                <div className="md:col-span-4">
-                  <label
-                    htmlFor="hero-destination-input"
-                    className="block text-xs font-bold uppercase tracking-wider text-[#595550] mb-1.5"
-                  >
-                    Destination, Landmark, or Locality
-                  </label>
-                  <div className="relative flex items-center">
-                    <Search className="w-4 h-4 text-[#736E68] absolute left-3.5 pointer-events-none" />
-                    <input
-                      id="hero-destination-input"
-                      type="text"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search Koregaon Park, Baner, Hinjewadi, Kothrud, Viman Nagar, FC Road, Wakad, Magarpatta..."
-                      className="w-full h-11 pl-10 pr-24 rounded-xl border border-black/15 bg-white text-sm text-[#141413] placeholder:text-[#736E68] focus:outline-none focus:ring-2 focus:ring-[#CF4500]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleLocateMe}
-                      disabled={locating}
-                      className="absolute right-2 px-2.5 py-1 rounded-pill bg-[#F3F0EE] hover:bg-[#E8E2DA] text-[11px] font-bold text-[#141413] flex items-center gap-1 transition-colors"
-                      title="Use browser GPS location"
-                    >
-                      <Compass className="w-3 h-3 text-[#CF4500]" />
-                      {locating ? "..." : "Near Me"}
-                    </button>
+          <div
+            className="absolute right-0 bottom-10 md:bottom-16"
+            style={{ transform: `translateY(${-parallax}px)` }}
+          >
+            <div className="float-slower">
+              <Reveal delay={700}>
+                <div className="flex items-center gap-3 rounded-pill bg-ink text-canvas pl-2 pr-5 py-2 shadow-halo">
+                  <span className="inline-flex size-9 items-center justify-center rounded-full bg-[#F37338] text-ink text-[13px] font-bold">
+                    ✓
+                  </span>
+                  <div>
+                    <div className="text-[12px] text-canvas/60">Gate PIN</div>
+                    <div className="text-[16px] font-medium tracking-[0.2em]">4 8 2 9</div>
                   </div>
                 </div>
+              </Reveal>
+            </div>
+          </div>
 
-                {/* Date Input */}
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="hero-date-input"
-                    className="block text-xs font-bold uppercase tracking-wider text-[#595550] mb-1.5"
-                  >
-                    Parking Date
-                  </label>
-                  <div className="relative">
-                    <Calendar className="w-4 h-4 text-[#736E68] absolute left-3.5 top-3.5 pointer-events-none" />
-                    <input
-                      id="hero-date-input"
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="w-full h-11 pl-10 pr-3 rounded-xl border border-black/15 bg-white text-sm text-[#141413] focus:outline-none focus:ring-2 focus:ring-[#CF4500]"
-                    />
-                  </div>
-                </div>
+          <div
+            className="absolute right-6 top-4 size-24 md:size-28"
+            style={{ transform: `translateY(${parallax * 0.9}px)` }}
+          >
+            <Reveal delay={600} variant="scale" className="size-full">
+              <img
+                src={CURATED_PARKING_PHOTOS[0].url}
+                alt=""
+                className="size-full rounded-full object-cover shadow-halo"
+              />
+            </Reveal>
+          </div>
+        </div>
+      </section>
 
-                {/* Arrival & Duration */}
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="hero-time-input"
-                    className="block text-xs font-bold uppercase tracking-wider text-[#595550] mb-1.5"
-                  >
-                    Arrival Time
-                  </label>
-                  <div className="relative">
-                    <Clock className="w-4 h-4 text-[#736E68] absolute left-3.5 top-3.5 pointer-events-none" />
-                    <input
-                      id="hero-time-input"
-                      type="time"
-                      value={arrivalTime}
-                      onChange={(e) => setArrivalTime(e.target.value)}
-                      className="w-full h-11 pl-10 pr-3 rounded-xl border border-black/15 bg-white text-sm text-[#141413] focus:outline-none focus:ring-2 focus:ring-[#CF4500]"
-                    />
-                  </div>
-                </div>
+      {/* ── 2. Problem ──────────────────────────────────────── */}
+      <section className="relative py-24 md:py-36">
+        <div
+          className="mc-watermark absolute left-1/2 top-6 -translate-x-1/2 whitespace-nowrap text-[120px] md:text-[220px]"
+          aria-hidden="true"
+        >
+          Circling.
+        </div>
+        <div className="relative mx-auto max-w-[1200px] px-5 md:px-8 grid lg:grid-cols-2 gap-12 lg:gap-24 items-end">
+          <Reveal>
+            <h2 className="text-[36px] md:text-[52px] leading-[1.05] tracking-[-0.025em]">
+              Drivers circle the block. Driveways sit empty all day.
+            </h2>
+          </Reveal>
+          <Reveal delay={120}>
+            <p className="text-[18px] leading-[1.55] text-granite">
+              Offices, cafés and colleges fill up by 10am. Meanwhile, private
+              spots in housing societies, bungalows and office basements stay
+              empty for hours. ParkOrbit is the marketplace that connects the two.
+            </p>
+          </Reveal>
+        </div>
 
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="hero-duration-select"
-                    className="block text-xs font-bold uppercase tracking-wider text-[#595550] mb-1.5"
-                  >
-                    Duration
-                  </label>
-                  <select
-                    id="hero-duration-select"
-                    value={durationHours}
-                    onChange={(e) => setDurationHours(Number(e.target.value))}
-                    className="w-full h-11 px-3 rounded-xl border border-black/15 bg-white text-sm text-[#141413] focus:outline-none focus:ring-2 focus:ring-[#CF4500]"
-                  >
-                    <option value={1}>1 Hour</option>
-                    <option value={2}>2 Hours</option>
-                    <option value={3}>3 Hours</option>
-                    <option value={4}>4 Hours</option>
-                    <option value={6}>6 Hours</option>
-                    <option value={8}>Full Workday (8 hrs)</option>
-                    <option value={12}>Overnight (12 hrs)</option>
-                    <option value={24}>24 Hours (1 Day)</option>
-                    <option value={48}>Weekend (2 Days)</option>
-                  </select>
-                </div>
-
-                {/* Vehicle Selector */}
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="hero-vehicle-select"
-                    className="block text-xs font-bold uppercase tracking-wider text-[#595550] mb-1.5"
-                  >
-                    Vehicle Size
-                  </label>
-                  <select
-                    id="hero-vehicle-select"
-                    value={vehicleType}
-                    onChange={(e) => setVehicleType(e.target.value)}
-                    className="w-full h-11 px-3 rounded-xl border border-black/15 bg-white text-sm text-[#141413] focus:outline-none focus:ring-2 focus:ring-[#CF4500]"
-                  >
-                    <option value="all">All Vehicles</option>
-                    <option value="two_wheeler">Two-Wheeler / Bike</option>
-                    <option value="hatchback">Hatchback / Compact</option>
-                    <option value="sedan">Sedan</option>
-                    <option value="suv">SUV / Crossover</option>
-                    <option value="ev">EV Car (Charging)</option>
-                  </select>
-                </div>
+        <div className="relative mx-auto max-w-[1200px] px-5 md:px-8 mt-20 grid grid-cols-3 gap-6">
+          {[
+            { value: stats.spaces, label: "spaces live in this demo" },
+            { value: stats.localities, label: "Pune neighbourhoods" },
+            { value: stats.minRate, label: "lowest hourly price", prefix: "₹" },
+          ].map((s, i) => (
+            <Reveal key={s.label} delay={i * 120} className="border-t border-ink/15 pt-6">
+              <div className="text-[40px] md:text-[64px] font-medium tracking-[-0.03em] leading-none">
+                {stats.spaces ? <CountUp value={s.value} prefix={s.prefix} /> : "—"}
               </div>
+              <div className="mt-3 text-[14px] md:text-[16px] text-slate">{s.label}</div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
 
-              {/* Popular Pune Localities Quick Pills */}
-              <div className="mt-4 pt-3 border-t border-black/8 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#736E68] mr-1">
-                    Pune Localities:
-                  </span>
-                  {URBAN_HUBS.map((hub) => {
-                    const isHubActive =
-                      searchCenter?.label.includes(hub.name) ||
-                      query.toLowerCase().includes(hub.name.toLowerCase());
-                    return (
-                      <button
-                        key={hub.id}
-                        type="button"
-                        onClick={() => handleSelectHub(hub)}
-                        className={`px-3 py-1 rounded-pill text-xs font-medium transition-all ${
-                          isHubActive
-                            ? "bg-[#141413] text-[#F3F0EE] font-semibold"
-                            : "bg-[#F3F0EE] text-[#595550] hover:bg-[#E8E2DA] hover:text-[#141413]"
-                        }`}
-                      >
-                        {hub.name}
-                      </button>
-                    );
-                  })}
+      {/* ── 3. How it works ─────────────────────────────────── */}
+      <section id="how" className="scroll-mt-28 py-24 md:py-32 bg-lifted">
+        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <Reveal>
+              <div className="mc-eyebrow">
+                <span className="mc-eyebrow-dot" />
+                <span>How it works</span>
+              </div>
+              <h2 className="mt-5 text-[36px] md:text-[52px] leading-[1.05] tracking-[-0.025em]">
+                Three steps, either side.
+              </h2>
+            </Reveal>
+            <Reveal delay={100}>
+              <div className="inline-flex rounded-pill bg-canvas p-1.5" role="tablist">
+                {(["driver", "host"] as const).map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    role="tab"
+                    aria-selected={audience === a}
+                    onClick={() => setAudience(a)}
+                    className={cn(
+                      "rounded-pill px-5 py-2.5 text-[15px] font-medium transition-all duration-300",
+                      audience === a ? "bg-ink text-canvas" : "text-ink/70 hover:text-ink"
+                    )}
+                  >
+                    {a === "driver" ? "I need parking" : "I have a spot"}
+                  </button>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+
+          <div className="relative mt-20">
+            <svg
+              className="hidden md:block absolute left-0 right-0 top-8 w-full h-24 pointer-events-none"
+              viewBox="0 0 1000 100"
+              preserveAspectRatio="none"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                key={audience}
+                d="M 60 30 C 250 110, 420 -40, 500 30 S 780 110, 940 30"
+                stroke="#F37338"
+                strokeWidth="1.25"
+                pathLength={1}
+                className="orbit-draw"
+              />
+            </svg>
+            <ol key={audience} className="relative grid md:grid-cols-3 gap-14 md:gap-10">
+              {STEPS[audience].map((step, i) => (
+                <Reveal as="li" key={step.title} delay={i * 140}>
+                  <div className="inline-flex size-16 items-center justify-center rounded-full bg-white text-[22px] font-medium shadow-halo">
+                    {i + 1}
+                  </div>
+                  <h3 className="mt-8 text-[24px] leading-[1.2]">{step.title}</h3>
+                  <p className="mt-3 text-[16px] text-slate leading-[1.5] max-w-xs">{step.body}</p>
+                </Reveal>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. Live map ─────────────────────────────────────── */}
+      <section className="py-24 md:py-32">
+        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <Reveal>
+              <div className="mc-eyebrow">
+                <span className="mc-eyebrow-dot" />
+                <span>Live</span>
+              </div>
+              <h2 className="mt-5 text-[36px] md:text-[52px] leading-[1.05] tracking-[-0.025em]">
+                Open spots in Pune, right now.
+              </h2>
+            </Reveal>
+            <Reveal delay={100}>
+              <Link href="/find">
+                <Button variant="secondary">
+                  Open the full map
+                  <ArrowRight />
+                </Button>
+              </Link>
+            </Reveal>
+          </div>
+          <Reveal variant="scale" delay={150} className="mt-12">
+            <DriverDiscoveryMap
+              listings={listings}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              className="h-[460px] md:h-[600px] shadow-halo"
+            />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── 5. Trust ────────────────────────────────────────── */}
+      <section id="trust" className="scroll-mt-28 py-24 md:py-32">
+        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+          <Reveal className="max-w-2xl">
+            <div className="mc-eyebrow">
+              <span className="mc-eyebrow-dot" />
+              <span>Trust & safety</span>
+            </div>
+            <h2 className="mt-5 text-[36px] md:text-[52px] leading-[1.05] tracking-[-0.025em]">
+              Strangers, made safe to share with.
+            </h2>
+          </Reveal>
+          <div className="mt-16 grid md:grid-cols-3 gap-6">
+            {TRUST.map((item, i) => (
+              <Reveal key={item.title} delay={i * 120} className="rounded-stadium bg-lifted p-8 md:p-10">
+                <div className="inline-flex size-14 items-center justify-center rounded-full bg-canvas">
+                  <item.icon className="size-6" strokeWidth={1.6} />
                 </div>
+                <h3 className="mt-10 text-[24px] leading-[1.2]">{item.title}</h3>
+                <p className="mt-3 text-[16px] text-slate leading-[1.5]">{item.body}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                <label className="inline-flex items-center gap-2 text-xs font-medium text-[#595550] cursor-pointer select-none">
+      {/* ── 6. Host earnings ────────────────────────────────── */}
+      <section className="px-4 md:px-6 py-12">
+        <Reveal variant="scale">
+          <div className="mx-auto max-w-[1280px] rounded-stadium bg-ink text-canvas px-6 py-16 md:px-16 md:py-24 grid lg:grid-cols-2 gap-16 items-center overflow-hidden relative">
+            <div className="relative">
+              <div className="mc-eyebrow text-canvas">
+                <span className="mc-eyebrow-dot" />
+                <span>For hosts</span>
+              </div>
+              <h2 className="mt-5 text-[36px] md:text-[52px] leading-[1.05] tracking-[-0.025em] text-canvas">
+                What could your spot earn?
+              </h2>
+              <div className="mt-12 space-y-8 max-w-md">
+                <label className="block">
+                  <div className="flex justify-between text-[15px]">
+                    <span className="text-canvas/70">Hourly price</span>
+                    <span className="font-medium">{formatInr(rate)}/hr</span>
+                  </div>
                   <input
-                    type="checkbox"
-                    checked={onlyAvailable}
-                    onChange={(e) => setOnlyAvailable(e.target.checked)}
-                    className="rounded border-black/25 text-[#CF4500] focus:ring-[#CF4500]"
+                    type="range"
+                    min={20}
+                    max={150}
+                    step={5}
+                    value={rate}
+                    onChange={(e) => setRate(Number(e.target.value))}
+                    className="mt-3 w-full accent-[#F37338]"
                   />
-                  <span>
-                    Only show spots available for{" "}
-                    <strong className="text-[#141413]">
-                      {date} ({arrivalTime}, {durationHours}h)
-                    </strong>
-                  </span>
+                </label>
+                <label className="block">
+                  <div className="flex justify-between text-[15px]">
+                    <span className="text-canvas/70">Hours booked per day</span>
+                    <span className="font-medium">{hoursPerDay} hrs</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={14}
+                    value={hoursPerDay}
+                    onChange={(e) => setHoursPerDay(Number(e.target.value))}
+                    className="mt-3 w-full accent-[#F37338]"
+                  />
                 </label>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* 2. DISCOVER & COMPARE PARKING SPACES (MAP + LISTINGS) */}
-      <section
-        id="discover"
-        className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 scroll-mt-24"
-      >
-        {/* Section Header + Filter Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
-          <div>
-            <div className="mc-eyebrow mb-2">
-              <span className="mc-eyebrow-dot" />
-              <span>LIVE MARKETPLACE DISCOVERY</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-medium tracking-[-0.02em] text-[#141413]">
-              Compare verified parking spaces
-            </h2>
-            <p className="text-base text-[#595550] mt-1">
-              Showing{" "}
-              <strong className="text-[#141413]">{listings.length}</strong>{" "}
-              {onlyAvailable ? "available " : ""}spaces{" "}
-              {searchCenter ? `near ${searchCenter.label}` : "across Pune"}{" "}
-              · Estimated prices shown for{" "}
-              <strong className="text-[#141413]">
-                {durationHours} {durationHours === 1 ? "hour" : "hours"}
-              </strong>
-            </p>
-          </div>
-
-          {/* Filter & Sort Controls */}
-          <div className="flex flex-wrap items-center gap-2.5 bg-[#FCFBFA] p-2.5 rounded-2xl border border-black/8">
-            <div className="flex items-center gap-1.5 px-2 text-xs font-bold uppercase tracking-wider text-[#595550]">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#CF4500]" />
-              Filters
-            </div>
-
-            <select
-              aria-label="Filter by Locality"
-              value={selectedLocality}
-              onChange={(e) => handleLocalityChange(e.target.value)}
-              className="h-9 px-3 rounded-pill bg-[#F3F0EE] text-xs font-medium text-[#141413] border border-transparent focus:outline-none focus:border-black/20"
-            >
-              <option value="all">All Pune Localities</option>
-              <option value="Koregaon Park">Koregaon Park</option>
-              <option value="Baner">Baner</option>
-              <option value="Hinjewadi">Hinjewadi</option>
-              <option value="Kothrud">Kothrud</option>
-              <option value="Viman Nagar">Viman Nagar</option>
-              <option value="FC Road">FC Road</option>
-              <option value="Wakad">Wakad</option>
-              <option value="Magarpatta">Magarpatta</option>
-            </select>
-
-            <select
-              aria-label="Filter by Parking Type"
-              value={spaceType}
-              onChange={(e) => setSpaceType(e.target.value)}
-              className="h-9 px-3 rounded-pill bg-[#F3F0EE] text-xs font-medium text-[#141413] border border-transparent focus:outline-none focus:border-black/20"
-            >
-              <option value="all">All Space Types</option>
-              <option value="covered">Covered Garage</option>
-              <option value="driveway">Private Driveway</option>
-              <option value="dedicated_private">Dedicated Private Slot</option>
-              <option value="commercial_lot">Commercial Lot</option>
-              <option value="uncovered">Uncovered Open</option>
-            </select>
-
-            <select
-              aria-label="Filter by Maximum Hourly Price"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className="h-9 px-3 rounded-pill bg-[#F3F0EE] text-xs font-medium text-[#141413] border border-transparent focus:outline-none focus:border-black/20"
-            >
-              <option value="all">Any Hourly Rate</option>
-              <option value="50">Up to ₹50/hr</option>
-              <option value="80">Up to ₹80/hr</option>
-              <option value="120">Up to ₹120/hr</option>
-            </select>
-
-            <select
-              aria-label="Sort results by"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-9 px-3 rounded-pill bg-[#141413] text-[#F3F0EE] text-xs font-semibold focus:outline-none"
-            >
-              <option value="featured">Sort: Featured & Rated</option>
-              <option value="price_asc">Sort: Price (Low to High)</option>
-              <option value="price_desc">Sort: Price (High to Low)</option>
-              <option value="distance">Sort: Closest Distance</option>
-              <option value="rating">Sort: Highest Host Rating</option>
-            </select>
-
-            {(query ||
-              selectedLocality !== "all" ||
-              spaceType !== "all" ||
-              vehicleType !== "all" ||
-              maxPrice !== "all") && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-3 py-1.5 rounded-pill text-xs font-semibold text-[#CF4500] hover:bg-[#CF4500]/10 transition-colors"
+            <div className="relative flex flex-col items-start lg:items-center">
+              <svg
+                viewBox="0 0 400 400"
+                className="absolute -inset-10 w-[calc(100%+5rem)] h-[calc(100%+5rem)] spin-orbit opacity-60"
+                fill="none"
+                aria-hidden="true"
               >
-                Reset All
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Split Discovery Layout: Map on Left (5 cols), Listings on Right (7 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Interactive Map Column */}
-          <div className="lg:col-span-5 lg:sticky lg:top-28">
-            <DriverDiscoveryMap
-              listings={listings}
-              selectedId={selectedListingId}
-              onSelect={(id: string) => setSelectedListingId(id)}
-              searchCenter={searchCenter}
-              onUseBrowserLocation={handleLocateMe}
-            />
-          </div>
-
-          {/* Listing Cards Column */}
-          <div className="lg:col-span-7 space-y-5">
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((n) => (
-                  <div
-                    key={n}
-                    className="h-56 rounded-[24px] bg-[#FCFBFA] border border-black/8 p-6 animate-pulse flex gap-6"
-                  >
-                    <div className="w-40 h-40 rounded-full bg-[#E8E2DA] shrink-0" />
-                    <div className="flex-1 space-y-3 py-2">
-                      <div className="h-4 w-1/3 bg-[#E8E2DA] rounded" />
-                      <div className="h-6 w-3/4 bg-[#E8E2DA] rounded" />
-                      <div className="h-4 w-1/2 bg-[#E8E2DA] rounded" />
-                      <div className="h-10 w-full bg-[#E8E2DA] rounded mt-4" />
-                    </div>
-                  </div>
-                ))}
+                <ellipse cx="200" cy="200" rx="190" ry="120" stroke="#F37338" strokeWidth="1" />
+              </svg>
+              <div className="relative text-[13px] uppercase tracking-[0.06em] font-bold text-canvas/60">
+                Estimated per month
               </div>
-            ) : listings.length === 0 ? (
-              <div className="rounded-[28px] bg-[#FCFBFA] border border-black/10 p-12 text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-[#F3F0EE] mx-auto flex items-center justify-center text-[#CF4500]">
-                  <MapPin className="w-7 h-7" />
-                </div>
-                <h3 className="text-2xl font-medium text-[#141413]">
-                  No parking spaces match your exact filters
-                </h3>
-                <p className="text-sm text-[#595550] max-w-md mx-auto">
-                  Try broadening your vehicle filter, adjusting your arrival
-                  window, or resetting your city filter to see all verified spots.
-                </p>
-                <div className="pt-2">
-                  <Button variant="default" onClick={handleResetFilters}>
-                    Show All Available Spaces
-                  </Button>
-                </div>
+              <div className="relative mt-3 text-[64px] md:text-[96px] font-medium tracking-[-0.04em] leading-none tabular-nums">
+                {formatInr(monthlyEarnings)}
               </div>
-            ) : (
-              listings.map((listing) => {
-                const isSelected = selectedListingId === listing.id;
-                const estimatedSubtotal =
-                  listing.estimatedPrice?.baseSubtotalInr ??
-                  (durationHours >= 8
-                    ? Math.ceil(durationHours / 24) * listing.dailyRateInr
-                    : durationHours * listing.hourlyRateInr);
+              <div className="relative mt-4 text-[14px] text-canvas/60">
+                22 days · after {commission}% ParkOrbit fee
+              </div>
+              <Button
+                variant="secondary"
+                className="relative mt-10 bg-canvas border-canvas"
+                onClick={() => goAs("host", "/host/new")}
+              >
+                List your space
+                <ArrowRight />
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+      </section>
 
-                return (
-                  <div
-                    key={listing.id}
-                    onClick={() => setSelectedListingId(listing.id)}
-                    onMouseEnter={() => setSelectedListingId(listing.id)}
-                    className={`group relative rounded-[28px] bg-[#FCFBFA] p-5 sm:p-6 transition-all duration-200 border cursor-pointer ${
-                      isSelected
-                        ? "border-[#CF4500] shadow-mc-card-hover ring-1 ring-[#CF4500]/30"
-                        : "border-black/8 shadow-mc-card hover:border-black/20"
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-stretch">
-                      {/* Circular Portrait Image Mask + Docked 56px White Satellite CTA */}
-                      <div className="relative w-44 h-44 sm:w-48 sm:h-48 shrink-0">
-                        <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#E8E2DA] bg-[#E8E2DA]">
-                          <img
-                            src={
-                              listing.photos[0]?.url ||
-                              "https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=900&q=80"
-                            }
-                            alt={listing.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                        </div>
+      {/* ── 7. Try it ───────────────────────────────────────── */}
+      <section className="py-24 md:py-36">
+        <div className="mx-auto max-w-[1200px] px-5 md:px-8">
+          <Reveal className="text-center">
+            <h2 className="text-[36px] md:text-[52px] leading-[1.05] tracking-[-0.025em]">
+              See it from both sides.
+            </h2>
+            <p className="mt-4 text-[18px] text-slate">
+              Two demo accounts, one live marketplace.
+            </p>
+          </Reveal>
 
-                        {/* Featured or Demo Badge */}
-                        {listing.isFeatured && (
-                          <span className="absolute top-1 left-1 px-2.5 py-1 rounded-pill bg-[#CF4500] text-white text-[10px] font-bold uppercase tracking-wider shadow">
-                            Featured
-                          </span>
-                        )}
-
-                        {/* Docked 56px White Satellite CTA */}
-                        <Link
-                          href={`/listings/${listing.id}?date=${date}&arrival=${arrivalTime}&duration=${durationHours}`}
-                          aria-label={`Inspect ${listing.title}`}
-                          className="mc-satellite-cta absolute bottom-1 right-1 !w-12 !h-12"
-                        >
-                          <ArrowRight className="w-5 h-5" />
-                        </Link>
-                      </div>
-
-                      {/* Listing Details Column */}
-                      <div className="flex-1 flex flex-col justify-between w-full">
-                        <div>
-                          {/* Top Metadata Row */}
-                          <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="default">
-                                {SPACE_TYPE_LABELS[listing.spaceType]}
-                              </Badge>
-                              {listing.distanceKm != null && (
-                                <Badge variant="signal">
-                                  {listing.distanceKm} km away
-                                </Badge>
-                              )}
-                              {listing.isDemo && (
-                                <Badge variant="outline" title="Seeded marketplace demo space">
-                                  Demo Listing
-                                </Badge>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1 text-xs font-bold text-[#141413]">
-                              <Star className="w-3.5 h-3.5 fill-[#CF4500] text-[#CF4500]" />
-                              <span>{listing.ratingAvg.toFixed(2)}</span>
-                              <span className="text-[#736E68] font-normal">
-                                ({listing.reviewCount})
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Title & Locality */}
-                          <Link
-                            href={`/listings/${listing.id}?date=${date}&arrival=${arrivalTime}&duration=${durationHours}`}
-                            className="block group-hover:text-[#CF4500] transition-colors"
-                          >
-                            <h3 className="text-xl font-medium tracking-[-0.015em] text-[#141413] line-clamp-1">
-                              {listing.title}
-                            </h3>
-                          </Link>
-
-                          <p className="text-xs text-[#595550] flex items-center gap-1 mt-1">
-                            <MapPin className="w-3.5 h-3.5 text-[#CF4500] shrink-0" />
-                            <span>
-                              {listing.address}, {listing.locality},{" "}
-                              {listing.city} ·{" "}
-                              <strong className="text-[#141413]">
-                                {listing.landmark}
-                              </strong>
-                            </span>
-                          </p>
-
-                          {/* Dimensions & Supported Vehicles */}
-                          <div className="flex flex-wrap items-center gap-2 mt-3">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#595550] bg-[#F3F0EE] px-2.5 py-1 rounded-pill">
-                              <Ruler className="w-3 h-3 text-[#141413]" />
-                              {listing.dimensions.lengthFt}×
-                              {listing.dimensions.widthFt} ft
-                              {listing.dimensions.heightClearanceFt
-                                ? ` · ${listing.dimensions.heightClearanceFt}ft clearance`
-                                : " · Open height"}
-                            </span>
-
-                            {listing.vehicleTypes.slice(0, 3).map((v) => (
-                              <span
-                                key={v}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#595550] bg-[#F3F0EE] px-2.5 py-1 rounded-pill"
-                              >
-                                <Car className="w-3 h-3 text-[#736E68]" />
-                                {VEHICLE_LABELS[v]}
-                              </span>
-                            ))}
-
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E7E48] bg-[#1E7E48]/10 px-2.5 py-1 rounded-pill">
-                              <Zap className="w-3 h-3" />
-                              Instant Book
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Bottom Pricing & CTA Row */}
-                        <div className="mt-4 pt-3.5 border-t border-black/8 flex flex-wrap items-center justify-between gap-4">
-                          <div>
-                            <div className="flex items-baseline gap-1.5">
-                              <span className="text-2xl font-bold text-[#141413]">
-                                {formatInr(listing.hourlyRateInr)}
-                              </span>
-                              <span className="text-xs text-[#595550]">
-                                / hour · {formatInr(listing.dailyRateInr)} / day
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-[#595550]">
-                              Est. base for {durationHours}h:{" "}
-                              <strong className="text-[#141413]">
-                                {formatInr(estimatedSubtotal)}
-                              </strong>{" "}
-                              {listing.availability.available ? (
-                                <span className="text-[#1E7E48] font-semibold">
-                                  • Available for slot
-                                </span>
-                              ) : (
-                                <span className="text-[#CF4500] font-semibold">
-                                  • {listing.availability.reason || "Unavailable"}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Link
-                              href={`/listings/${listing.id}?date=${date}&arrival=${arrivalTime}&duration=${durationHours}`}
-                            >
-                              <Button variant="default" size="sm">
-                                View & Reserve
-                                <ArrowRight className="w-3.5 h-3.5" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          <div className="mt-20 grid md:grid-cols-2 gap-20 md:gap-10">
+            {[
+              {
+                role: "driver" as const,
+                path: "/find",
+                eyebrow: "Driver",
+                title: "Book a spot as Aarav",
+                photo: CURATED_PARKING_PHOTOS[4].url,
+                offset: "",
+              },
+              {
+                role: "host" as const,
+                path: "/dashboard/host",
+                eyebrow: "Host",
+                title: "Run a space as Neha",
+                photo: CURATED_PARKING_PHOTOS[5].url,
+                offset: "md:mt-28",
+              },
+            ].map((card, i) => (
+              <Reveal key={card.role} delay={i * 150} className={cn("flex flex-col items-center", card.offset)}>
+                <button
+                  type="button"
+                  onClick={() => goAs(card.role, card.path)}
+                  className="group relative size-[240px] md:size-[300px]"
+                  aria-label={card.title}
+                >
+                  <img
+                    src={card.photo}
+                    alt=""
+                    className="size-full rounded-full object-cover shadow-halo transition-transform duration-700 group-hover:scale-[1.03]"
+                  />
+                  <span className="mc-satellite-cta absolute bottom-4 right-2">
+                    <ArrowRight className="size-5" />
+                  </span>
+                </button>
+                <div className="mc-eyebrow mt-10">
+                  <span className="mc-eyebrow-dot" />
+                  <span>{card.eyebrow}</span>
+                </div>
+                <h3 className="mt-3 text-[24px]">{card.title}</h3>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
-
     </div>
   );
 }

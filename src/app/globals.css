@@ -87,6 +87,41 @@
 }
 
 @layer components {
+  /* Scroll reveal: elements start offset and settle in when they enter the viewport (see Reveal.tsx) */
+  .reveal {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+    transition:
+      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+  .reveal.reveal-scale {
+    transform: scale(0.94);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .orbit-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: orbit-draw 2.4s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
+  }
+
+  .float-slow {
+    animation: float-slow 7s ease-in-out infinite;
+  }
+  .float-slower {
+    animation: float-slow 9s ease-in-out -3s infinite;
+  }
+
+  .spin-orbit {
+    animation: spin-orbit 40s linear infinite;
+  }
+
   /* Eyebrow label per DESIGN-mastercard.md: 14px, weight 700, +4% tracking, uppercase, paired with accent dot */
   .mc-eyebrow {
     display: inline-flex;
@@ -150,6 +185,13 @@
   background-color: #F3F0EE;
   isolation: isolate;
   z-index: 1;
+  border: 0 !important;
+  outline: none;
+}
+
+/* Warm the tiles slightly so the map sits on the cream canvas instead of fighting it */
+.leaflet-tile-pane {
+  filter: grayscale(0.85) sepia(0.12) brightness(1.04) contrast(0.92);
 }
 
 .leaflet-pane {
@@ -187,4 +229,71 @@
 }
 .leaflet-control-attribution a:hover {
   text-decoration: underline;
+}
+
+@keyframes orbit-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
+
+@keyframes spin-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal,
+  .reveal.reveal-scale {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .orbit-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .float-slow,
+  .float-slower,
+  .spin-orbit {
+    animation: none;
+  }
+}
+
+/* Borderless pill zoom control to match the floating-nav look */
+.leaflet-touch .leaflet-bar,
+.leaflet-bar {
+  border: none !important;
+  border-radius: 999px !important;
+  overflow: hidden;
+  box-shadow: 0px 4px 24px 0px rgba(0, 0, 0, 0.08) !important;
+}
+.leaflet-touch .leaflet-bar a,
+.leaflet-bar a {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  color: #141413 !important;
+  border-bottom: 1px solid rgba(20, 20, 19, 0.08) !important;
+  font-weight: 400;
+}
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+.leaflet-top.leaflet-right {
+  margin: 8px;
 }

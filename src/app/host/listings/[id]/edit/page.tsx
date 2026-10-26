@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import { ListingForm } from "@/components/host/ListingForm";
 import type { ParkingListing } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -29,48 +29,35 @@ export default function EditHostListingPage({
 
   if (loading) {
     return (
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-12">
-        <div className="h-80 rounded-[28px] bg-[#FCFBFA] animate-pulse border border-black/8" />
+      <div className="mx-auto max-w-[760px] px-5 py-16">
+        <div className="h-80 rounded-stadium bg-lifted animate-pulse" />
       </div>
     );
   }
 
   if (!listing) {
     return (
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-20 text-center space-y-4">
-        <h1 className="text-3xl font-medium text-[#141413]">
-          Listing Not Found
-        </h1>
+      <div className="mx-auto max-w-[760px] px-5 py-32 text-center space-y-6">
+        <h1 className="text-[36px]">Listing not found</h1>
         <Link href="/dashboard/host">
-          <Button variant="default">Return to Host Studio</Button>
+          <Button>Back to dashboard</Button>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 space-y-8">
-      <div className="space-y-3">
+    <div className="mx-auto max-w-[1100px] px-5 md:px-8 pt-10 md:pt-14">
+      <div className="max-w-[760px] mx-auto flex items-center justify-between gap-4 mb-12">
+        <h1 className="text-[18px] font-medium text-slate truncate">Editing {listing.title}</h1>
         <Link
           href="/dashboard/host"
-          className="inline-flex items-center gap-2 text-sm font-medium text-[#595550] hover:text-[#141413] transition-colors"
+          aria-label="Close and return to dashboard"
+          className="inline-flex size-11 items-center justify-center rounded-full hover:bg-lifted transition-colors shrink-0"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Host Studio
+          <X className="size-5" />
         </Link>
-        <div className="mc-eyebrow">
-          <span className="mc-eyebrow-dot" />
-          <span>UPDATE PARKING LISTING</span>
-        </div>
-        <h1 className="text-3xl sm:text-5xl font-medium tracking-[-0.02em] text-[#141413]">
-          Edit: {listing.title}
-        </h1>
-        <p className="text-base text-[#595550] max-w-2xl">
-          Update pricing, photos, vehicle clearance dimensions, or access
-          instructions without recreating your space.
-        </p>
       </div>
-
       <ListingForm mode="edit" initialListing={listing} />
     </div>
   );
