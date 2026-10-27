@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { PlatformConfig, User, UserRole } from "@/lib/types";
 import { toast } from "sonner";
+import { notifyDataChanged } from "@/lib/sync";
 
 export interface DemoUserSummary {
   id: string;
@@ -139,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(user);
       const roleBadge = user.role.toUpperCase();
       toast.success(`Switched active account to ${user.name} (${roleBadge})`);
+      notifyDataChanged("auth");
       return user;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Switch failed");
@@ -159,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await refreshAuth();
       toast.success(`Welcome back, ${data.currentUser.name}`);
       setAuthModalOpen(false);
+      notifyDataChanged("auth");
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
@@ -186,6 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await refreshAuth();
       toast.success(`Account created! Welcome to ParkOrbit, ${data.currentUser.name}`);
       setAuthModalOpen(false);
+      notifyDataChanged("auth");
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
@@ -201,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     setCurrentUser(null);
     toast.info("Signed out of ParkOrbit.");
+    notifyDataChanged("auth");
   };
 
   const updateProfile = async (updates: Partial<User>): Promise<boolean> => {
@@ -214,6 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error(data.error || "Update failed");
       setCurrentUser(data.currentUser);
       toast.success("Profile updated.");
+      notifyDataChanged("auth");
       return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Profile update failed");

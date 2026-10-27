@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/setup.mjs && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
@@ -11,6 +12,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=18.18.0",
+    "npm": ">=9.0.0"
+  },
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.3",

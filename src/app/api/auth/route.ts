@@ -8,6 +8,9 @@ import {
 } from "@/lib/db";
 import { AUTH_COOKIE_NAME, resolveRequestUser } from "@/lib/auth-server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const db = readDb();
   const currentUser = resolveRequestUser(req);

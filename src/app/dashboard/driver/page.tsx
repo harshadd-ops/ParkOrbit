@@ -16,6 +16,7 @@ import {
 import { Reveal } from "@/components/motion/Reveal";
 import { useAuth } from "@/context/AuthContext";
 import { cn, formatDateTime, formatInr, formatShortDate } from "@/lib/utils";
+import { notifyDataChanged, useDataSync } from "@/lib/sync";
 import type { Booking } from "@/lib/types";
 
 const STATUS_LABEL: Record<Booking["status"], string> = {
@@ -38,7 +39,7 @@ export default function DriverDashboardPage() {
 
   const fetchDriverBookings = useCallback(async () => {
     try {
-      const res = await fetch("/api/bookings?role=driver");
+      const res = await fetch("/api/bookings?role=driver", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setBookings(data.driverBookings || []);
@@ -48,9 +49,7 @@ export default function DriverDashboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchDriverBookings();
-  }, [fetchDriverBookings, user?.id]);
+  useDataSync(fetchDriverBookings, [fetchDriverBookings, user?.id]);
 
   const patchBooking = async (booking: Booking, body: Record<string, unknown>, success: string) => {
     setActionId(booking.id);
@@ -70,6 +69,7 @@ export default function DriverDashboardPage() {
           ? `Cancelled. Refund: ${formatInr(data.booking?.refundAmountInr || 0)}`
           : success
       );
+      notifyDataChanged("bookings");
       await fetchDriverBookings();
     } finally {
       setActionId(null);
@@ -94,6 +94,7 @@ export default function DriverDashboardPage() {
       toast.success("Thanks for the review!");
       setReviewBooking(null);
       setComment("");
+      notifyDataChanged("reviews");
       await fetchDriverBookings();
     } finally {
       setSubmittingReview(false);

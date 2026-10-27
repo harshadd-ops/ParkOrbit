@@ -17,7 +17,7 @@ export default function EditHostListingPage({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/listings/${id}`)
+    fetch(`/api/listings/${id}`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.listing) {

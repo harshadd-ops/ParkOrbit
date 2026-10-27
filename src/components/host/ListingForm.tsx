@@ -12,6 +12,7 @@ import { CURATED_PARKING_PHOTOS } from "@/lib/seed";
 import { SPACE_TYPE_LABELS, VEHICLE_LABELS, POLICY_LABELS } from "@/lib/labels";
 import type { ParkingListing, SpaceType, VehicleType, CancellationPolicy } from "@/lib/types";
 import { cn, formatInr } from "@/lib/utils";
+import { notifyDataChanged } from "@/lib/sync";
 
 // Leaflet needs window, so the picker only ever renders on the client
 const HostLocationPicker = dynamic(
@@ -219,6 +220,7 @@ export function ListingForm({ initialListing, mode }: ListingFormProps) {
       }
 
       toast.success(targetStatus === "draft" ? "Saved as a draft." : "Your space is live! Drivers can book it now.");
+      notifyDataChanged("listings");
       router.push("/dashboard/host");
       router.refresh();
     } catch {

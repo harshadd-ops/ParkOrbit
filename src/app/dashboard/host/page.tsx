@@ -30,6 +30,7 @@ import {
 import { CountUp } from "@/components/motion/Reveal";
 import { useAuth } from "@/context/AuthContext";
 import { cn, formatDateTime, formatInr } from "@/lib/utils";
+import { notifyDataChanged, useDataSync } from "@/lib/sync";
 import type { ParkingListing, Booking, BlockedPeriod, Review } from "@/lib/types";
 
 interface HostFinancials {
@@ -270,7 +271,7 @@ export default function HostDashboardPage() {
   const fetchHostData = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await fetch("/api/bookings?role=host");
+      const res = await fetch("/api/bookings?role=host", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setListings(data.hostListings || []);
@@ -284,9 +285,7 @@ export default function HostDashboardPage() {
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchHostData();
-  }, [fetchHostData]);
+  useDataSync(fetchHostData, [fetchHostData, user?.id, range]);
 
   const toggleListing = async (listing: ParkingListing) => {
     const nextStatus = listing.status === "published" ? "paused" : "published";
@@ -303,6 +302,7 @@ export default function HostDashboardPage() {
         return;
       }
       toast.success(nextStatus === "published" ? "Your space is live." : "Paused. Drivers can't book it.");
+      notifyDataChanged("listings");
       await fetchHostData();
     } finally {
       setBusyId(null);
@@ -329,6 +329,7 @@ export default function HostDashboardPage() {
       }
       toast.success(`${booking.driverName} is checked in.`);
       setPinInputs((p) => ({ ...p, [booking.id]: "" }));
+      notifyDataChanged("bookings");
       await fetchHostData();
     } finally {
       setBusyId(null);
@@ -345,6 +346,7 @@ export default function HostDashboardPage() {
       });
       if (res.ok) {
         toast.success("Marked as complete.");
+        notifyDataChanged("bookings");
         await fetchHostData();
       }
     } finally {
@@ -385,6 +387,7 @@ export default function HostDashboardPage() {
         return;
       }
       toast.success("Blocked. Drivers can't book those hours.");
+      notifyDataChanged("blocks");
       await fetchHostData();
     } finally {
       setAddingBlock(false);
@@ -395,6 +398,7 @@ export default function HostDashboardPage() {
     const res = await fetch(`/api/listings/${listingId}/blocks?blockId=${blockId}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Time reopened for bookings.");
+      notifyDataChanged("blocks");
       await fetchHostData();
     }
   };

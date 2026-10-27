@@ -23,6 +23,7 @@ import {
 import { SPACE_TYPE_LABELS, VEHICLE_LABELS } from "@/lib/labels";
 import type { SpaceType, VehicleType } from "@/lib/types";
 import type { EnrichedListing } from "@/lib/db";
+import { useDataSync } from "@/lib/sync";
 
 const DriverDiscoveryMap = dynamic(
   () => import("@/components/map/DriverDiscoveryMap").then((m) => m.DriverDiscoveryMap),
@@ -128,7 +129,7 @@ function FindParking() {
       }
       if (onlyAvailable) params.set("onlyAvailable", "true");
 
-      const res = await fetch(`/api/listings?${params.toString()}`);
+      const res = await fetch(`/api/listings?${params.toString()}`, { cache: "no-store" });
       const data = await res.json();
       setListings(data.listings || []);
     } catch {
@@ -138,9 +139,7 @@ function FindParking() {
     }
   }, [debouncedQuery, spaceType, vehicleType, maxPrice, sortBy, searchCenter, onlyAvailable, startTimeIso, endTimeIso]);
 
-  useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
+  useDataSync(fetchListings, [fetchListings]);
 
   const pickLocality = (name: string | null) => {
     setLocality(name);

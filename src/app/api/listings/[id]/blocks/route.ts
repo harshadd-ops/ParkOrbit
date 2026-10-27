@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { addBlockedPeriod, removeBlockedPeriod } from "@/lib/db";
 import { resolveRequestUser } from "@/lib/auth-server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
