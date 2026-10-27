@@ -3,6 +3,9 @@ import { createListing, readDb, searchListings } from "@/lib/db";
 import { resolveRequestUser } from "@/lib/auth-server";
 import { SpaceType, VehicleType } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || undefined;

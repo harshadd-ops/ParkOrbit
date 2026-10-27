@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateTime } from "@/lib/utils";
+import { notifyDataChanged, useDataSync } from "@/lib/sync";
 import type { ModerationReport, PlatformConfig } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -32,7 +33,7 @@ export default function AdminModerationPage() {
   const fetchAdminData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/reports");
+      const res = await fetch("/api/reports", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setReports(data.reports || []);
@@ -46,9 +47,7 @@ export default function AdminModerationPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchAdminData();
-  }, [fetchAdminData]);
+  useDataSync(fetchAdminData, [fetchAdminData, user?.id]);
 
   const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +76,7 @@ export default function AdminModerationPage() {
       toast.success(
         `Marketplace commission rate updated to ${data.config.commissionRatePercent}% across all future bookings.`
       );
+      notifyDataChanged("config");
     } finally {
       setSavingConfig(false);
     }
@@ -116,6 +116,7 @@ export default function AdminModerationPage() {
           ? "Report resolved & target listing suspended from public search."
           : `Report marked as ${status}.`
       );
+      notifyDataChanged("reports");
       await fetchAdminData();
     } catch {
       toast.error("Failed to update report.");

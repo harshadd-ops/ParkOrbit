@@ -36,6 +36,7 @@ import {
   formatInr,
   tomorrowDateString,
 } from "@/lib/utils";
+import { notifyDataChanged, useDataSync } from "@/lib/sync";
 import { POLICY_LABELS, SPACE_TYPE_LABELS, VEHICLE_LABELS } from "@/lib/labels";
 import type {
   ParkingListing,
@@ -101,7 +102,7 @@ export default function ListingDetailPage({
 
   const fetchListingDetail = useCallback(async () => {
     try {
-      const res = await fetch(`/api/listings/${id}`);
+      const res = await fetch(`/api/listings/${id}`, { cache: "no-store" });
       if (!res.ok) {
         setListing(null);
         return;
@@ -122,9 +123,7 @@ export default function ListingDetailPage({
     }
   }, [id]);
 
-  useEffect(() => {
-    fetchListingDetail();
-  }, [fetchListingDetail]);
+  useDataSync(fetchListingDetail, [fetchListingDetail]);
 
   const { startTimeIso, endTimeIso } = useMemo(
     () => buildTimeWindow(date, arrivalTime, durationHours),
@@ -184,6 +183,7 @@ export default function ListingDetailPage({
       }
       setConfirmedBooking(data.booking);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      notifyDataChanged("bookings");
       await fetchListingDetail();
     } catch {
       toast.error("Network error while booking.");
@@ -216,6 +216,7 @@ export default function ListingDetailPage({
       toast.success("Thanks. Our trust team will review it.");
       setReportOpen(false);
       setReportDetails("");
+      notifyDataChanged("reports");
     } finally {
       setReporting(false);
     }

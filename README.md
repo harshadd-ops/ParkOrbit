@@ -432,61 +432,129 @@ parkorbit/
 │   ├── challenger_m3_2_stress.test.ts # Rapid booking creation & slot collisions
 │   ├── challenger_m1_2.test.ts        # Data integrity & validation tests
 │   └── react_leaflet_geojson.test.ts  # Map layer & GeoJSON polygon tests
-├── package.json                       # Scripts and project dependencies
+├── .npmrc                             # Automatic peer-dependency resolution config
+├── .gitattributes                     # Cross-platform line-ending normalization
+├── run.bat                            # 1-Click Windows launcher (CMD / Explorer)
+├── run.ps1                            # 1-Click Windows PowerShell launcher
+├── run.sh                             # 1-Click macOS / Linux / Git Bash launcher
+├── package.json                       # Scripts, engine constraints, and dependencies
 ├── tailwind.config.ts                 # Tailwind design tokens and animations
 └── tsconfig.json                      # Strict TypeScript compiler configuration
 ```
 
 ---
 
-## 🚦 Quickstart & Local Setup
+## 🚦 Quickstart & Local Setup (Works on Any Laptop)
 
-### System Prerequisites
-- **Node.js**: `v18.18.0+` or `v20.0.0+` (Node 22 / 24 fully supported)
-- **Package Manager**: `npm`, `pnpm`, or `yarn`
-- **Git**
+ParkOrbit is engineered to run **100% out-of-the-box on any Windows, macOS, or Linux laptop** with **zero external database servers** and **zero paid API keys** required.
 
-### 1. Clone & Enter the Repository
+### 💻 System & Software Requirements
+
+| Requirement | Minimum Version | Recommended | Notes |
+|---|---|---|---|
+| **Operating System** | Windows 10/11, macOS 12+, Ubuntu 20.04+ | Any modern 64-bit OS | Cross-platform launchers included |
+| **Node.js** | `v18.18.0+` | `v20 LTS` or `v22 LTS` | Download from [nodejs.org](https://nodejs.org/) |
+| **npm** | `v9.0.0+` | `v10+` | Bundled automatically with Node.js |
+| **RAM / Disk** | 4 GB RAM / 500 MB free disk | 8 GB RAM | Lightweight local JSON store (`data/parkorbit-db.json`) |
+| **External API Keys** | **None Required** | None | Uses free OpenStreetMap/Carto tiles & built-in UPI simulator |
+
+---
+
+### ⚡ Option A: 1-Click Auto-Launcher (Fastest — Recommended)
+
+Once you clone or unzip the project, simply run the launcher script for your operating system. It will **automatically** verify Node.js, create `.env.local`, install `node_modules` if missing, validate the local Pune database, open your browser to `http://localhost:3000`, and start the server:
+
+#### **Windows (File Explorer or Command Prompt)**
+Double-click **`run.bat`** in File Explorer, or run in Command Prompt:
+```bat
+run.bat
+```
+
+#### **Windows (PowerShell)**
+```powershell
+.\run.ps1
+```
+*(If PowerShell blocks script execution, run `powershell -ExecutionPolicy Bypass -File .\run.ps1` or use `.\run.bat`)*
+
+#### **macOS / Linux / Git Bash / WSL**
 ```bash
-git clone https://github.com/harshadd-ops/ParkOrbit.git
+chmod +x run.sh
+./run.sh
+```
+
+---
+
+### 🛠️ Option B: Manual Terminal Setup
+
+#### 1. Clone & Enter the Repository
+```bash
+git clone https://github.com/sruj08/ParkOrbit.git
 cd ParkOrbit
 ```
 
-### 2. Install Dependencies
+#### 2. Install Dependencies
 ```bash
 npm install
 ```
+> **Note**: A pre-configured `.npmrc` (`legacy-peer-deps=true`) and `package.json` `overrides` are included in the repository so React 19 and React-Leaflet v4 install cleanly on every machine without peer-dependency warnings.
 
-### 3. Initialize Environment Variables
-Create `.env.local` from the sample template:
+#### 3. Run the Pre-Flight Doctor (Optional — Also Runs Automatically on `npm run dev`)
 ```bash
-cp .env.example .env.local
+npm run setup
 ```
+This cross-platform script (`scripts/setup.mjs`) automatically:
+- Verifies your Node.js version (`>= 18.18.0`)
+- Generates `.env.local` from `.env.example` if not present
+- Verifies or self-heals `data/parkorbit-db.json` with 8 Pune listings and 4 demo personas
+- Confirms all required packages exist in `node_modules`
 
-The defaults work immediately out-of-the-box without requiring third-party API accounts:
-```env
-# Database Storage Path
-PARKORBIT_DB_PATH="./data/parkorbit-db.json"
-
-# Marketplace Business Economics
-PLATFORM_COMMISSION_PERCENT="12"
-DRIVER_SERVICE_FEE_PERCENT="5"
-
-# Simulation Modes (Operates safely without external payment gateways)
-PAYMENT_PROVIDER_MODE="simulated_test"
-PAYOUT_PROVIDER_MODE="estimated_pending"
-
-# Geospatial Tiles & Security
-NEXT_PUBLIC_MAP_PROVIDER="interactive_orbit"
-SESSION_SECRET="parkorbit-dev-secret-change-in-production"
-```
-
-### 4. Start Development Server
+#### 4. Start the Development Server
 ```bash
 npm run dev
 ```
+Open [`http://localhost:3000`](http://localhost:3000) in your browser.
 
-Visit [`http://localhost:3000`](http://localhost:3000) in your browser.
+---
+
+### 📦 Complete Dependencies Reference
+
+All required packages are declared in [`package.json`](package.json) and installed automatically via `npm install`:
+
+#### **Runtime Dependencies (`dependencies`)**
+| Package | Version | Role in ParkOrbit |
+|---|---|---|
+| `next` | `15.1.7` | Next.js App Router, SSR/CSR rendering, and REST API Route Handlers |
+| `react` & `react-dom` | `^19.0.0` | Core UI rendering and concurrent state management |
+| `leaflet` & `react-leaflet` | `^1.9.4` / `^4.2.1` | Interactive Pune maps, custom `₹/hr` HTML pins, and draggable host pin-dropper |
+| `lucide-react` | `^0.475.0` | Consistent vector iconography across all dashboards |
+| `zod` | `^3.24.2` | Schema validation for bookings, listings, and API payloads |
+| `sonner` | `^2.0.1` | Real-time toast notifications for check-ins, bookings, and moderation |
+| `@radix-ui/react-*` | Latest | Accessible UI primitives (`avatar`, `dialog`, `label`, `select`, `separator`, `slot`, `switch`, `tabs`) |
+| `clsx` & `tailwind-merge` | `^2.1.1` / `^3.0.1` | Dynamic class composition and conflict-free Tailwind utility merging |
+| `class-variance-authority` | `^0.7.1` | Component variant styling (`Button`, `Badge`, etc.) |
+| `tailwindcss-animate` | `^1.0.7` | Smooth micro-interactions and modal transitions |
+
+#### **Development & Testing Dependencies (`devDependencies`)**
+| Package | Version | Role in ParkOrbit |
+|---|---|---|
+| `typescript` | `^5.7.3` | Strict static type checking (`npm run typecheck`) |
+| `tailwindcss` & `postcss` & `autoprefixer` | `^3.4.17` | CSS utility compilation pipeline |
+| `vitest` | `^3.0.6` | Unit and stress test runner (111 automated tests) |
+| `@playwright/test` | `^1.50.1` | End-to-end browser testing and automated screenshot/PDF generation |
+| `@types/node`, `@types/react`, `@types/leaflet` | Latest | TypeScript definitions for Node, React 19, and Leaflet |
+
+---
+
+### 🔧 Troubleshooting Common Laptop Issues
+
+1. **`'node' is not recognized as an internal or external command`**
+   - Install Node.js LTS (`v20` or `v22`) from [https://nodejs.org/](https://nodejs.org/), check **"Add to PATH"** during installation, and restart your terminal.
+2. **`npm error code ERESOLVE` on older npm versions**
+   - Run `npm install --legacy-peer-deps`. (Our `.npmrc` and `run.bat`/`run.sh` scripts already apply this flag automatically.)
+3. **Port `3000` is already in use**
+   - Next.js will automatically fall back to `http://localhost:3001`, or you can run `npx next dev -p 3005`.
+4. **Want to reset the database back to fresh Pune demo data?**
+   - Simply delete `data/parkorbit-db.json` and refresh the page—ParkOrbit's self-seeding engine (`src/lib/db.ts`) immediately recreates a fresh Pune database on the next request.
 
 ---
 

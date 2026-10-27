@@ -17,6 +17,7 @@ import { Reveal, CountUp, useScrollProgress } from "@/components/motion/Reveal";
 import { useAuth, DEMO_PERSONAS } from "@/context/AuthContext";
 import { CURATED_PARKING_PHOTOS } from "@/lib/seed";
 import { cn, formatInr } from "@/lib/utils";
+import { useDataSync } from "@/lib/sync";
 import type { EnrichedListing } from "@/lib/db";
 
 const DriverDiscoveryMap = dynamic(
@@ -87,12 +88,14 @@ export default function HomePage() {
   const [hoursPerDay, setHoursPerDay] = useState(8);
   const hero = useScrollProgress<HTMLDivElement>();
 
-  useEffect(() => {
-    fetch("/api/listings")
+  const fetchHomeData = () => {
+    fetch("/api/listings", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => setListings(data.listings || []))
       .catch(() => setListings([]));
-  }, []);
+  };
+
+  useDataSync(fetchHomeData);
 
   const stats = useMemo(() => {
     const localities = new Set(listings.map((l) => l.locality.split(" ")[0]));
